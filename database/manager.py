@@ -19,7 +19,8 @@ def get_connection():
 
 def initialize_database():
     """
-    Create the initial database structure.
+    Create the initial database structure
+    and apply lightweight schema migrations.
     """
     connection = get_connection()
 
@@ -33,6 +34,7 @@ def initialize_database():
             )
             """
         )
+
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS report_history (
@@ -40,10 +42,34 @@ def initialize_database():
                 report_name TEXT NOT NULL,
                 report_type TEXT NOT NULL,
                 file_path TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'available'
             )
             """
         )
+
+        # Check whether the existing database
+        # already has the status column.
+        columns = connection.execute(
+            """
+            PRAGMA table_info(report_history)
+            """
+        ).fetchall()
+
+        column_names = {
+            column["name"]
+            for column in columns
+        }
+
+        # Add status column to older databases.
+        if "status" not in column_names:
+            connection.execute(
+                """
+                ALTER TABLE report_history
+                ADD COLUMN status TEXT NOT NULL
+                DEFAULT 'available'
+                """
+            )
 
         connection.commit()
 
@@ -67,7 +93,10 @@ def set_metadata(key, value):
             ON CONFLICT(key)
             DO UPDATE SET value = excluded.value
             """,
-            (key, str(value)),
+            (
+                str(key),
+                str(value),
+            ),
         )
 
         connection.commit()
@@ -91,7 +120,7 @@ def get_metadata(key, default=None):
             FROM app_metadata
             WHERE key = ?
             """,
-            (key,),
+            (str(key),),
         ).fetchone()
 
         if row is None:
@@ -117,7 +146,7 @@ def delete_metadata(key):
             DELETE FROM app_metadata
             WHERE key = ?
             """,
-            (key,),
+            (str(key),),
         )
 
         connection.commit()
@@ -127,6 +156,7 @@ def delete_metadata(key):
     finally:
         connection.close()
 
+
 def add_report_history(
     report_name,
     report_type,
@@ -134,7 +164,8 @@ def add_report_history(
     created_at,
 ):
     """
-    Store generated report information in the database.
+    Store generated report information
+    in the database.
     """
     initialize_database()
 
@@ -147,15 +178,17 @@ def add_report_history(
                 report_name,
                 report_type,
                 file_path,
-                created_at
+                created_at,
+                status
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
                 str(report_name),
                 str(report_type),
                 str(file_path),
                 str(created_at),
+                "available",
             ),
         )
 
@@ -181,7 +214,8 @@ def get_report_history(limit=50):
                 report_name,
                 report_type,
                 file_path,
-                created_at
+                created_at,
+                status
             FROM report_history
             ORDER BY id DESC
             LIMIT ?
@@ -189,10 +223,79 @@ def get_report_history(limit=50):
             (limit,),
         ).fetchall()
 
-        return [dict(row) for row in rows]
+        return [
+            dict(row)
+            for row in rows
+        ]
 
     finally:
         connection.close()
+
+
+def update_report_status(
+    report_id,
+    status,
+):
+    """
+    Update the status of a report history entry.
+    """
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE report_history
+            SET status = ?
+            WHERE id = ?
+            """,
+            (
+                str(status),
+                int(report_id),
+            ),
+        )
+
+        connection.commit()
+
+        return cursor.rowcount > 0
+
+    finally:
+        connection.close()
+
+
+def get_report_by_id(report_id):
+    """
+    Retrieve a single report history entry by ID.
+    """
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                report_name,
+                report_type,
+                file_path,
+                created_at,
+                status
+            FROM report_history
+            WHERE id = ?
+            """,
+            (int(report_id),),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return dict(row)
+
+    finally:
+        connection.close()
+
 
 if __name__ == "__main__":
     initialize_database()
