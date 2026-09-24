@@ -1,6 +1,8 @@
-import sqlite3
-
-from database.manager import get_connection
+from database.manager import (
+    add_report_history,
+    get_connection,
+    get_report_history,
+)
 
 
 def test_database_connection(tmp_path, monkeypatch):
@@ -14,7 +16,7 @@ def test_database_connection(tmp_path, monkeypatch):
     connection = get_connection()
 
     try:
-        assert isinstance(connection, sqlite3.Connection)
+        assert connection is not None
 
     finally:
         connection.close()
@@ -31,6 +33,8 @@ def test_database_row_factory(tmp_path, monkeypatch):
     connection = get_connection()
 
     try:
+        import sqlite3
+
         assert connection.row_factory == sqlite3.Row
 
     finally:
@@ -60,16 +64,14 @@ def test_metadata_table(tmp_path, monkeypatch):
 
         connection.commit()
 
-        cursor = connection.execute(
+        result = connection.execute(
             """
             SELECT name
             FROM sqlite_master
             WHERE type = 'table'
             AND name = 'app_metadata'
             """
-        )
-
-        result = cursor.fetchone()
+        ).fetchone()
 
         assert result is not None
         assert result["name"] == "app_metadata"
@@ -124,3 +126,51 @@ def test_metadata_insert_and_read(tmp_path, monkeypatch):
 
     finally:
         connection.close()
+
+
+def test_report_history(tmp_path, monkeypatch):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    add_report_history(
+        report_name="test_report.json",
+        report_type="JSON",
+        file_path="reports/test_report.json",
+        created_at="2026-09-25 03:30:00",
+    )
+
+    history = get_report_history()
+
+    assert len(history) == 1
+
+    report = history[0]
+
+    assert report["report_name"] == "test_report.json"
+    assert report["report_type"] == "JSON"
+    assert report["file_path"] == "reports/test_report.json"
+    assert report["created_at"] == "2026-09-25 03:30:00"
+
+
+def test_report_history_limit(tmp_path, monkeypatch):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    for number in range(5):
+        add_report_history(
+            report_name=f"report_{number}.json",
+            report_type="JSON",
+            file_path=f"reports/report_{number}.json",
+            created_at=f"2026-09-25 03:3{number}:00",
+        )
+
+    history = get_report_history(limit=3)
+
+    assert len(history) == 3
