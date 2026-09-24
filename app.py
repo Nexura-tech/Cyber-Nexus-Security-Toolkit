@@ -9,6 +9,7 @@ from core.utils import (
 from core.logger import logger
 from modules.report_manager.manager import run as reports_manager
 from modules.settings.manager import run as settings_manager
+from core.validators import validate_menu_choice
 
 from modules.password_analyzer.analyzer import (
     run as password_analyzer
@@ -66,6 +67,10 @@ def main():
 
         choice = input("\nSelect an option: ").strip()
         logger.info("Menu option selected: %s", choice)
+        if not validate_menu_choice(choice, 0, 9):
+            print_error("Invalid option. Please select 0-9.")
+            pause()
+            continue
 
         clear_screen()
         print_banner()
