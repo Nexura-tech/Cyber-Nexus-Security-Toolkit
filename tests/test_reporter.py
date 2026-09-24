@@ -8,6 +8,17 @@ from core.reporter import (
 )
 
 
+def disable_report_history(monkeypatch):
+    """
+    Prevent reporter tests from modifying
+    the real application database.
+    """
+    monkeypatch.setattr(
+        "core.reporter.add_report_history",
+        lambda **kwargs: None,
+    )
+
+
 def test_sanitize_name():
     assert sanitize_name("Password Analyzer") == "password_analyzer"
     assert sanitize_name("URL Analyzer!") == "url_analyzer"
@@ -26,6 +37,8 @@ def test_generate_filename():
 
 
 def test_save_json(tmp_path, monkeypatch):
+    disable_report_history(monkeypatch)
+
     monkeypatch.setattr(
         "core.reporter.REPORT_DIR",
         tmp_path,
@@ -51,6 +64,8 @@ def test_save_json(tmp_path, monkeypatch):
 
 
 def test_save_text(tmp_path, monkeypatch):
+    disable_report_history(monkeypatch)
+
     monkeypatch.setattr(
         "core.reporter.REPORT_DIR",
         tmp_path,
