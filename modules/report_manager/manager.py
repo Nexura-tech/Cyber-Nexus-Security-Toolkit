@@ -1,20 +1,24 @@
-from pathlib import Path
-
 from core.reporter import REPORT_DIR
 
 
-def list_reports():
-    reports = sorted(
-        REPORT_DIR.glob("*"),
-        key=lambda file: file.stat().st_mtime,
-        reverse=True
-    )
-
+def get_reports():
+    """Return available report files sorted by newest first."""
     reports = [
         report
-        for report in reports
+        for report in REPORT_DIR.glob("*")
         if report.is_file()
     ]
+
+    return sorted(
+        reports,
+        key=lambda file: file.stat().st_mtime,
+        reverse=True,
+    )
+
+
+def list_reports():
+    """Display all available reports."""
+    reports = get_reports()
 
     if not reports:
         print("\n[!] No reports found.")
@@ -34,17 +38,8 @@ def list_reports():
 
 
 def view_latest_report():
-    reports = sorted(
-        REPORT_DIR.glob("*"),
-        key=lambda file: file.stat().st_mtime,
-        reverse=True
-    )
-
-    reports = [
-        report
-        for report in reports
-        if report.is_file()
-    ]
+    """Display the newest report."""
+    reports = get_reports()
 
     if not reports:
         print("\n[!] No reports found.")
@@ -58,18 +53,19 @@ def view_latest_report():
     print()
 
     try:
-        with open(
-            latest,
-            "r",
-            encoding="utf-8"
-        ) as file:
-            print(file.read())
+        print(
+            latest.read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
+        )
 
     except OSError as error:
         print(f"[!] Could not read report: {error}")
 
 
 def search_reports():
+    """Search report contents for a keyword."""
     keyword = input(
         "\nEnter keyword to search: "
     ).strip().lower()
@@ -78,19 +74,14 @@ def search_reports():
         print("\n[!] Search keyword cannot be empty.")
         return
 
-    reports = [
-        report
-        for report in REPORT_DIR.glob("*")
-        if report.is_file()
-    ]
-
+    reports = get_reports()
     matches = []
 
     for report in reports:
         try:
             content = report.read_text(
                 encoding="utf-8",
-                errors="ignore"
+                errors="ignore",
             )
 
             if keyword in content.lower():
@@ -111,15 +102,8 @@ def search_reports():
 
 
 def delete_report():
-    reports = sorted(
-        [
-            report
-            for report in REPORT_DIR.glob("*")
-            if report.is_file()
-        ],
-        key=lambda file: file.stat().st_mtime,
-        reverse=True
-    )
+    """Delete one selected report."""
+    reports = get_reports()
 
     if not reports:
         print("\n[!] No reports found.")
@@ -156,15 +140,14 @@ def delete_report():
         print(f"\n[+] Deleted: {selected.name}")
 
     except OSError as error:
-        print(f"\n[!] Could not delete report: {error}")
+        print(
+            f"\n[!] Could not delete report: {error}"
+        )
 
 
 def clear_reports():
-    reports = [
-        report
-        for report in REPORT_DIR.glob("*")
-        if report.is_file()
-    ]
+    """Delete all generated reports after confirmation."""
+    reports = get_reports()
 
     if not reports:
         print("\n[!] No reports found.")
@@ -184,6 +167,7 @@ def clear_reports():
         try:
             report.unlink()
             deleted += 1
+
         except OSError:
             pass
 
@@ -191,9 +175,11 @@ def clear_reports():
 
 
 def run():
+    """Run the Reports Manager menu."""
     while True:
         print("\nReports Manager")
         print("-" * 40)
+
         print("[1] List Reports")
         print("[2] View Latest Report")
         print("[3] Search Reports")
@@ -201,7 +187,9 @@ def run():
         print("[5] Clear Reports")
         print("[0] Back")
 
-        choice = input("\nSelect an option: ").strip()
+        choice = input(
+            "\nSelect an option: "
+        ).strip()
 
         if choice == "1":
             list_reports()
@@ -224,7 +212,9 @@ def run():
         else:
             print("\n[!] Invalid option.")
 
-        input("\nPress Enter to continue...")
+        input(
+            "\nPress Enter to continue..."
+        )
 
 
 if __name__ == "__main__":
