@@ -1,6 +1,8 @@
 from urllib.parse import urlparse
 import ipaddress
 
+from core.reporter import save_json, save_text
+
 
 def normalize_url(url):
     url = url.strip()
@@ -42,7 +44,9 @@ def analyze_url(url):
             "path": parsed.path,
             "query": parsed.query,
             "fragment": parsed.fragment,
-            "has_credentials": bool(parsed.username or parsed.password),
+            "has_credentials": bool(
+                parsed.username or parsed.password
+            ),
             "is_ip": is_ip,
             "https": parsed.scheme.lower() == "https",
             "length": len(url),
@@ -68,22 +72,12 @@ def display_result(result):
         print("Port: Default")
 
     print(f"Path: {result['path'] or '/'}")
-
-    print(
-        f"IP Address Used: "
-        f"{'YES' if result['is_ip'] else 'NO'}"
-    )
-
-    print(
-        f"HTTPS: "
-        f"{'YES' if result['https'] else 'NO'}"
-    )
-
+    print(f"IP Address Used: {'YES' if result['is_ip'] else 'NO'}")
+    print(f"HTTPS: {'YES' if result['https'] else 'NO'}")
     print(
         f"Credentials in URL: "
         f"{'YES' if result['has_credentials'] else 'NO'}"
     )
-
     print(f"URL Length: {result['length']} characters")
 
     print("\nObservations")
@@ -98,8 +92,41 @@ def display_result(result):
     if result["has_credentials"]:
         print("[!] URL contains embedded credentials.")
 
-    if not result["is_ip"] and result["https"] and not result["has_credentials"]:
+    if (
+        not result["is_ip"]
+        and result["https"]
+        and not result["has_credentials"]
+    ):
         print("[+] No basic URL concerns detected.")
+
+
+def generate_reports(result):
+    report_data = {
+        "module": "URL Analyzer",
+        "result": result,
+    }
+
+    json_file = save_json(report_data)
+
+    text_data = {
+        "Module": "URL Analyzer",
+        "URL": result["url"],
+        "Scheme": result["scheme"].upper(),
+        "Hostname": result["hostname"],
+        "Port": result["port"] or "Default",
+        "Path": result["path"] or "/",
+        "IP Address Used": result["is_ip"],
+        "HTTPS": result["https"],
+        "Credentials in URL": result["has_credentials"],
+        "URL Length": result["length"],
+    }
+
+    text_file = save_text(
+        "Cyber Nexus URL Analysis Report",
+        text_data
+    )
+
+    return json_file, text_file
 
 
 def run():
@@ -115,6 +142,13 @@ def run():
         return
 
     display_result(result)
+
+    json_file, text_file = generate_reports(result)
+
+    print("\nReports Generated")
+    print("-" * 40)
+    print(f"JSON: {json_file}")
+    print(f"TXT:  {text_file}")
 
 
 if __name__ == "__main__":
