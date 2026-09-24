@@ -1,10 +1,7 @@
 import json
 from datetime import datetime
-from pathlib import Path
 
-REPORT_DIR = Path("reports")
-REPORT_DIR.mkdir(exist_ok=True)
-
+from core.config import REPORT_DIR
 
 def generate_filename(extension):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

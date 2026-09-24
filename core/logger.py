@@ -1,10 +1,9 @@
 import logging
-from pathlib import Path
 
-LOG_DIR = Path("logs")
+from core.config import LOG_DIR, LOG_FILE
+
+
 LOG_DIR.mkdir(exist_ok=True)
-
-LOG_FILE = LOG_DIR / "toolkit.log"
 
 logging.basicConfig(
     filename=LOG_FILE,
