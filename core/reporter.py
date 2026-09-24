@@ -3,7 +3,8 @@ import re
 from datetime import datetime
 
 from core.config import REPORT_DIR
-
+from database.manager import add_report_history
+from core.utils import get_timestamp
 
 def sanitize_name(name):
     """
@@ -34,7 +35,7 @@ def generate_filename(extension, prefix="security_report"):
 
 def save_json(data, prefix=None):
     """
-    Save report data as JSON.
+    Save report data as JSON and record it in database history.
     """
     if prefix is None:
         prefix = data.get(
@@ -59,12 +60,19 @@ def save_json(data, prefix=None):
             default=str,
         )
 
+    add_report_history(
+        report_name=file_path.name,
+        report_type="JSON",
+        file_path=file_path,
+        created_at=get_timestamp(),
+    )
+
     return file_path
 
 
 def save_text(title, data, prefix=None):
     """
-    Save report data as readable text.
+    Save report data as text and record it in database history.
     """
     if prefix is None:
         prefix = title
@@ -91,5 +99,12 @@ def save_text(title, data, prefix=None):
                 )
         else:
             file.write(str(data))
+
+    add_report_history(
+        report_name=file_path.name,
+        report_type="TXT",
+        file_path=file_path,
+        created_at=get_timestamp(),
+    )
 
     return file_path
