@@ -33,6 +33,17 @@ def initialize_database():
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS report_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_name TEXT NOT NULL,
+                report_type TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
 
         connection.commit()
 
@@ -116,6 +127,72 @@ def delete_metadata(key):
     finally:
         connection.close()
 
+def add_report_history(
+    report_name,
+    report_type,
+    file_path,
+    created_at,
+):
+    """
+    Store generated report information in the database.
+    """
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO report_history (
+                report_name,
+                report_type,
+                file_path,
+                created_at
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                str(report_name),
+                str(report_type),
+                str(file_path),
+                str(created_at),
+            ),
+        )
+
+        connection.commit()
+
+    finally:
+        connection.close()
+
+
+def get_report_history(limit=50):
+    """
+    Return recent report history.
+    """
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                id,
+                report_name,
+                report_type,
+                file_path,
+                created_at
+            FROM report_history
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    finally:
+        connection.close()
 
 if __name__ == "__main__":
     initialize_database()
