@@ -4,7 +4,7 @@ from datetime import datetime
 from core.config import REPORT_DIR
 
 def generate_filename(extension):
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     return REPORT_DIR / f"security_report_{timestamp}.{extension}"
 
 
