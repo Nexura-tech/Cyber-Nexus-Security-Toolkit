@@ -1,5 +1,5 @@
 import requests
-
+from core.config import REQUEST_TIMEOUT
 from core.reporter import save_json, save_text
 
 
@@ -52,7 +52,7 @@ def check_headers(url):
     try:
         response = requests.get(
             url,
-            timeout=10,
+            timeout=REQUEST_TIMEOUT,
             allow_redirects=True
         )
 
