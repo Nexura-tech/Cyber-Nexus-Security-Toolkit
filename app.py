@@ -1,32 +1,65 @@
-from core.utils import print_banner, print_section, pause
+from core.utils import (
+    clear_screen,
+    print_banner,
+    print_section,
+    print_error,
+    pause,
+)
 
-from modules.password_analyzer.analyzer import run as password_analyzer
-from modules.hash_tool.hasher import run as hash_generator
-from modules.system_info.info import run as system_information
-from modules.url_analyzer.analyzer import run as url_analyzer
-from modules.security_headers.checker import run as security_header_checker
-from modules.metadata_analyzer.analyzer import run as metadata_analyzer
-from modules.log_analyzer.analyzer import run as log_analyzer
+from modules.password_analyzer.analyzer import (
+    run as password_analyzer
+)
+
+from modules.hash_tool.hasher import (
+    run as hash_generator
+)
+
+from modules.system_info.info import (
+    run as system_information
+)
+
+from modules.url_analyzer.analyzer import (
+    run as url_analyzer
+)
+
+from modules.security_headers.checker import (
+    run as security_header_checker
+)
+
+from modules.metadata_analyzer.analyzer import (
+    run as metadata_analyzer
+)
+
+from modules.log_analyzer.analyzer import (
+    run as log_analyzer
+)
+
 
 def show_menu():
     print_section("MAIN MENU")
 
-    print("[1] Password Analyzer")
-    print("[2] Hash Generator")
-    print("[3] System Information")
-    print("[4] URL Analyzer")
-    print("[5] Security Header Checker")
-    print("[6] File Metadata Analyzer")
-    print("[7] Log Analyzer")
-    print("[0] Exit")
+    print("[1] 🔐 Password Analyzer")
+    print("[2] #️⃣  Hash Generator")
+    print("[3] 🖥️  System Information")
+    print("[4] 🌐 URL Analyzer")
+    print("[5] 🛡️  Security Header Checker")
+    print("[6] 📄 File Metadata Analyzer")
+    print("[7] 📋 Log Analyzer")
+    print("[0] 🚪 Exit")
 
 
 def main():
     while True:
+
+        clear_screen()
+
         print_banner()
         show_menu()
 
         choice = input("\nSelect an option: ").strip()
+
+        clear_screen()
+        print_banner()
 
         if choice == "1":
             password_analyzer()
@@ -61,7 +94,7 @@ def main():
             break
 
         else:
-            print("\nInvalid option.")
+            print_error("Invalid option. Please select 0-7.")
             pause()
 
 
