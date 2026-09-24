@@ -11,7 +11,7 @@ from core.validators import validate_menu_choice
 from core.error_handler import safe_run
 from core.config import APP_VERSION
 from core.commands import COMMANDS
-
+from database.manager import initialize_database
 
 def show_menu():
     print_section("MAIN MENU")
@@ -23,6 +23,7 @@ def show_menu():
 
 
 def main():
+    initialize_database()
     logger.info("Cyber Nexus Security Toolkit started")
     logger.info("Application version: %s", APP_VERSION)
 
