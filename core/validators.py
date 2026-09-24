@@ -4,31 +4,34 @@ from urllib.parse import urlparse
 
 def validate_non_empty(value):
     """
-    Check whether input contains meaningful text.
+    Check whether a value contains non-whitespace characters.
     """
-    return bool(value and value.strip())
+    if value is None:
+        return False
+
+    return bool(str(value).strip())
 
 
 def validate_file_path(file_path):
     """
-    Check whether a path exists and points to a regular file.
+    Check whether the supplied path exists and is a file.
     """
     if not validate_non_empty(file_path):
         return False
 
-    path = Path(file_path.strip())
+    path = Path(str(file_path).strip())
 
     return path.exists() and path.is_file()
 
 
 def validate_url(url):
     """
-    Basic URL validation.
+    Validate a basic HTTP/HTTPS URL.
     """
     if not validate_non_empty(url):
         return False
 
-    url = url.strip()
+    url = str(url).strip()
 
     if "://" not in url:
         url = "https://" + url
@@ -47,9 +50,15 @@ def validate_url(url):
 
 def validate_menu_choice(choice, minimum, maximum):
     """
-    Validate a numeric menu choice.
+    Validate that a menu choice is an integer
+    within the supplied range.
     """
-    if not choice or not choice.isdigit():
+    if choice is None:
+        return False
+
+    choice = str(choice).strip()
+
+    if not choice.isdigit():
         return False
 
     value = int(choice)
