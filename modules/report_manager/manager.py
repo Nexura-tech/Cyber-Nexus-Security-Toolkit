@@ -1,5 +1,5 @@
 from core.reporter import REPORT_DIR
-
+from database.manager import get_report_history
 
 def get_reports():
     """Return available report files sorted by newest first."""
@@ -173,6 +173,24 @@ def clear_reports():
 
     print(f"\n[+] Deleted {deleted} report(s).")
 
+def show_report_history():
+    """Display report history stored in the database."""
+    history = get_report_history()
+
+    print("\nReport History")
+    print("-" * 80)
+
+    if not history:
+        print("[!] No report history found.")
+        return
+
+    for report in history:
+        print(f"ID:          {report['id']}")
+        print(f"Name:        {report['report_name']}")
+        print(f"Type:        {report['report_type']}")
+        print(f"Created At:  {report['created_at']}")
+        print(f"File Path:   {report['file_path']}")
+        print("-" * 80)
 
 def run():
     """Run the Reports Manager menu."""
@@ -185,6 +203,7 @@ def run():
         print("[3] Search Reports")
         print("[4] Delete Report")
         print("[5] Clear Reports")
+        print("[6] Report History")
         print("[0] Back")
 
         choice = input(
@@ -205,6 +224,9 @@ def run():
 
         elif choice == "5":
             clear_reports()
+
+        elif choice == "6":
+            show_report_history()
 
         elif choice == "0":
             break
