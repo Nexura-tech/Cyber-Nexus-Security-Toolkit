@@ -7,8 +7,8 @@ from core.utils import (
 )
 
 from core.logger import logger
-
 from modules.report_manager.manager import run as reports_manager
+from modules.settings.manager import run as settings_manager
 
 from modules.password_analyzer.analyzer import (
     run as password_analyzer
@@ -50,6 +50,7 @@ def show_menu():
     print("[6] 📄 File Metadata Analyzer")
     print("[7] 📋 Log Analyzer")
     print("[8] 📊 Reports Manager")
+    print("[9] ⚙️  Settings")
     print("[0] 🚪 Exit")
 
 
@@ -99,6 +100,9 @@ def main():
 
         elif choice == "8":
             reports_manager()
+        elif choice == "9":
+            settings_manager()
+            pause()
         elif choice == "0":
             logger.info("Cyber Nexus Security Toolkit stopped")
             print("\nExiting Cyber Nexus Security Toolkit...")
