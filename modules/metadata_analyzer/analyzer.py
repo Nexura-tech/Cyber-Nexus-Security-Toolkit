@@ -2,10 +2,10 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 
+from core.reporter import save_json, save_text
+
 
 def format_size(size):
-    """Convert bytes into a human-readable format."""
-
     if size < 1024:
         return f"{size} B"
 
@@ -19,8 +19,6 @@ def format_size(size):
 
 
 def calculate_sha256(file_path):
-    """Calculate SHA-256 hash of a file."""
-
     sha256 = hashlib.sha256()
 
     try:
@@ -40,8 +38,6 @@ def calculate_sha256(file_path):
 
 
 def get_file_metadata(file_path):
-    """Collect basic file metadata."""
-
     path = Path(file_path)
 
     if not path.exists():
@@ -55,7 +51,11 @@ def get_file_metadata(file_path):
     metadata = {
         "name": path.name,
         "extension": path.suffix or "None",
-        "type": path.suffix[1:].upper() if path.suffix else "Unknown",
+        "type": (
+            path.suffix[1:].upper()
+            if path.suffix
+            else "Unknown"
+        ),
         "absolute_path": str(path.resolve()),
         "size": format_size(stats.st_size),
         "created": datetime.fromtimestamp(
@@ -74,8 +74,6 @@ def get_file_metadata(file_path):
 
 
 def display_metadata(metadata):
-    """Display file metadata."""
-
     print("\nFile Metadata")
     print("-" * 50)
 
@@ -93,6 +91,35 @@ def display_metadata(metadata):
     print(metadata["sha256"])
 
 
+def generate_reports(metadata):
+    report_data = {
+        "module": "File Metadata Analyzer",
+        "result": metadata,
+    }
+
+    json_file = save_json(report_data)
+
+    text_data = {
+        "Module": "File Metadata Analyzer",
+        "Name": metadata["name"],
+        "Extension": metadata["extension"],
+        "Type": metadata["type"],
+        "Path": metadata["absolute_path"],
+        "Size": metadata["size"],
+        "Created": metadata["created"],
+        "Modified": metadata["modified"],
+        "Accessed": metadata["accessed"],
+        "SHA-256": metadata["sha256"],
+    }
+
+    text_file = save_text(
+        "Cyber Nexus File Metadata Report",
+        text_data
+    )
+
+    return json_file, text_file
+
+
 def run():
     print("\nFile Metadata Analyzer")
     print("-" * 30)
@@ -102,10 +129,20 @@ def run():
     metadata = get_file_metadata(file_path)
 
     if metadata is None:
-        print("\n[!] File does not exist or is not a regular file.")
+        print(
+            "\n[!] File does not exist "
+            "or is not a regular file."
+        )
         return
 
     display_metadata(metadata)
+
+    json_file, text_file = generate_reports(metadata)
+
+    print("\nReports Generated")
+    print("-" * 50)
+    print(f"JSON: {json_file}")
+    print(f"TXT:  {text_file}")
 
 
 if __name__ == "__main__":
