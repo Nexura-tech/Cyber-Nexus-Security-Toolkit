@@ -22,3 +22,8 @@ def test_ip_url():
 
     assert result is not None
     assert result["is_ip"] is True
+
+def test_invalid_url():
+    result = analyze_url("")
+
+    assert result is None
