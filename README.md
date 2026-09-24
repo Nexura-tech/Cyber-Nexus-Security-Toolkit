@@ -58,38 +58,39 @@ Cyber-Nexus-Security-Toolkit/
 ├── .gitignore
 └── README.md
 ```
-Requirements
+## Requirements
    Python 3.10+
    pip
    Git
 
 ## Installation
 
-Clone the repository:
+# Clone the repository:
 
 git clone <repository-url>
 cd Cyber-Nexus-Security-Toolkit
 
-Create a virtual environment:
+# Create a virtual environment:
 
 python3 -m venv .venv
 
-Activate it:
+## Activate it:
 
-Linux/macOS:
+# Linux/macOS:
 
 source .venv/bin/activate
 
-Windows:
+# Windows:
 
 .venv\Scripts\activate
 
-Install dependencies:
+# Install dependencies:
 
 python -m pip install -r requirements.txt
-Run the Toolkit
+
+# Run the Toolkit
 python app.py
-Main Menu
+## Main Menu
 [1] Password Analyzer
 [2] Hash Generator
 [3] System Information
@@ -101,7 +102,8 @@ Main Menu
 [9] Health Check
 [10] Settings
 [0] Exit
-Run Tests
+
+# Run Tests
 
 Run the complete automated test suite:
 
