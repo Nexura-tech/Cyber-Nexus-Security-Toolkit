@@ -10,6 +10,7 @@ from core.logger import logger
 from modules.report_manager.manager import run as reports_manager
 from modules.settings.manager import run as settings_manager
 from core.validators import validate_menu_choice
+from core.error_handler import safe_run
 
 from modules.password_analyzer.analyzer import (
     run as password_analyzer
@@ -76,37 +77,37 @@ def main():
         print_banner()
 
         if choice == "1":
-            password_analyzer()
+            safe_run(password_analyzer, "Password Analyzer")
             pause()
 
         elif choice == "2":
-            hash_generator()
+            safe_run(hash_generator, "Hash Generator")
             pause()
 
         elif choice == "3":
-            system_information()
+            safe_run(system_information, "System Information")
             pause()
 
         elif choice == "4":
-            url_analyzer()
+            safe_run(url_analyzer, "URL Analyzer")
             pause()
 
         elif choice == "5":
-            security_header_checker()
+            safe_run(security_header_checker, "Security Header Checker")
             pause()
 
         elif choice == "6":
-            metadata_analyzer()
+            safe_run(metadata_analyzer, "File Metadata Analyzer")
             pause()
 
         elif choice == "7":
-            log_analyzer()
+            safe_run(log_analyzer, "Log Analyzer")
             pause()
 
         elif choice == "8":
-            reports_manager()
+            safe_run(reports_manager, "Reports Manager")
         elif choice == "9":
-            settings_manager()
+            safe_run(settings_manager, "Settings Manager")
             pause()
         elif choice == "0":
             logger.info("Cyber Nexus Security Toolkit stopped")
