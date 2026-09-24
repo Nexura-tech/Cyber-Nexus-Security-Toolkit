@@ -11,6 +11,7 @@ from modules.report_manager.manager import run as reports_manager
 from modules.settings.manager import run as settings_manager
 from core.validators import validate_menu_choice
 from core.error_handler import safe_run
+from modules.health_check.checker import run as health_check
 
 from modules.password_analyzer.analyzer import (
     run as password_analyzer
@@ -52,7 +53,8 @@ def show_menu():
     print("[6] 📄 File Metadata Analyzer")
     print("[7] 📋 Log Analyzer")
     print("[8] 📊 Reports Manager")
-    print("[9] ⚙️  Settings")
+    print("[9] 🩺  Health Check")
+    print("[10] ⚙️  Settings")
     print("[0] 🚪 Exit")
 
 
@@ -68,8 +70,8 @@ def main():
 
         choice = input("\nSelect an option: ").strip()
         logger.info("Menu option selected: %s", choice)
-        if not validate_menu_choice(choice, 0, 9):
-            print_error("Invalid option. Please select 0-9.")
+        if not validate_menu_choice(choice, 0, 10):
+            print_error("Invalid option. Please select 0-10.")
             pause()
             continue
 
@@ -106,7 +108,12 @@ def main():
 
         elif choice == "8":
             safe_run(reports_manager, "Reports Manager")
+
         elif choice == "9":
+           safe_run(health_check, "Health Check")
+           pause()
+
+        elif choice == "10":
             safe_run(settings_manager, "Settings Manager")
             pause()
         elif choice == "0":
@@ -115,7 +122,7 @@ def main():
             break
 
         else:
-            print_error("Invalid option. Please select 0-7.")
+            print_error("Invalid option. Please select 0-10.")
             pause()
 
 
