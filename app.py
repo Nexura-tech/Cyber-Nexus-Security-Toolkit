@@ -1,0 +1,69 @@
+from core.utils import print_banner, print_section, pause
+
+from modules.password_analyzer.analyzer import run as password_analyzer
+from modules.hash_tool.hasher import run as hash_generator
+from modules.system_info.info import run as system_information
+from modules.url_analyzer.analyzer import run as url_analyzer
+from modules.security_headers.checker import run as security_header_checker
+from modules.metadata_analyzer.analyzer import run as metadata_analyzer
+from modules.log_analyzer.analyzer import run as log_analyzer
+
+def show_menu():
+    print_section("MAIN MENU")
+
+    print("[1] Password Analyzer")
+    print("[2] Hash Generator")
+    print("[3] System Information")
+    print("[4] URL Analyzer")
+    print("[5] Security Header Checker")
+    print("[6] File Metadata Analyzer")
+    print("[7] Log Analyzer")
+    print("[0] Exit")
+
+
+def main():
+    while True:
+        print_banner()
+        show_menu()
+
+        choice = input("\nSelect an option: ").strip()
+
+        if choice == "1":
+            password_analyzer()
+            pause()
+
+        elif choice == "2":
+            hash_generator()
+            pause()
+
+        elif choice == "3":
+            system_information()
+            pause()
+
+        elif choice == "4":
+            url_analyzer()
+            pause()
+
+        elif choice == "5":
+            security_header_checker()
+            pause()
+
+        elif choice == "6":
+            metadata_analyzer()
+            pause()
+
+        elif choice == "7":
+            log_analyzer()
+            pause()
+
+        elif choice == "0":
+            print("\nExiting Cyber Nexus Security Toolkit...")
+            break
+
+        else:
+            print("\nInvalid option.")
+            pause()
+
+
+if __name__ == "__main__":
+    main()
