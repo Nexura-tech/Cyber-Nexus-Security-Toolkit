@@ -1,5 +1,7 @@
 import requests
 
+from core.reporter import save_json, save_text
+
 
 SECURITY_HEADERS = {
     "Strict-Transport-Security": {
@@ -61,13 +63,36 @@ def check_headers(url):
         return None
 
 
-def display_results(response):
+def analyze_headers(response):
+    headers = {}
+
+    for header, information in SECURITY_HEADERS.items():
+        value = response.headers.get(header)
+
+        headers[header] = {
+            "present": bool(value),
+            "value": value if value else None,
+            "description": information["description"],
+            "recommendation": (
+                None
+                if value
+                else information["recommendation"]
+            )
+        }
+
+    return headers
+
+
+def display_results(response, headers):
     print("\nSecurity Header Analysis")
     print("-" * 50)
 
     print(f"Final URL: {response.url}")
     print(f"Status Code: {response.status_code}")
-    print(f"Server: {response.headers.get('Server', 'Not disclosed')}")
+    print(
+        f"Server: "
+        f"{response.headers.get('Server', 'Not disclosed')}"
+    )
 
     print("\nSecurity Headers")
     print("-" * 50)
@@ -75,29 +100,89 @@ def display_results(response):
     present = 0
     missing = 0
 
-    for header, information in SECURITY_HEADERS.items():
+    for header, information in headers.items():
 
-        value = response.headers.get(header)
-
-        if value:
+        if information["present"]:
             present += 1
 
             print(f"\n[+] {header}")
-            print(f"    Status: PRESENT")
-            print(f"    Value: {value}")
+            print("    Status: PRESENT")
+            print(f"    Value: {information['value']}")
 
         else:
             missing += 1
 
             print(f"\n[-] {header}")
-            print(f"    Status: MISSING")
-            print(f"    Recommendation: {information['recommendation']}")
+            print("    Status: MISSING")
+            print(
+                f"    Recommendation: "
+                f"{information['recommendation']}"
+            )
 
     print("\nSummary")
     print("-" * 50)
-
     print(f"Security headers present: {present}")
     print(f"Security headers missing: {missing}")
+
+
+def generate_reports(response, headers):
+    present = sum(
+        1
+        for information in headers.values()
+        if information["present"]
+    )
+
+    missing = len(headers) - present
+
+    report_data = {
+        "module": "Security Header Checker",
+        "final_url": response.url,
+        "status_code": response.status_code,
+        "server": response.headers.get(
+            "Server",
+            "Not disclosed"
+        ),
+        "headers": headers,
+        "summary": {
+            "present": present,
+            "missing": missing
+        }
+    }
+
+    json_file = save_json(report_data)
+
+    text_data = {
+        "Module": "Security Header Checker",
+        "Final URL": response.url,
+        "Status Code": response.status_code,
+        "Server": response.headers.get(
+            "Server",
+            "Not disclosed"
+        ),
+        "Headers Present": present,
+        "Headers Missing": missing,
+    }
+
+    for header, information in headers.items():
+        text_data[f"{header} - Status"] = (
+            "PRESENT"
+            if information["present"]
+            else "MISSING"
+        )
+
+        if information["present"]:
+            text_data[f"{header} - Value"] = information["value"]
+        else:
+            text_data[f"{header} - Recommendation"] = (
+                information["recommendation"]
+            )
+
+    text_file = save_text(
+        "Cyber Nexus Security Header Report",
+        text_data
+    )
+
+    return json_file, text_file
 
 
 def run():
@@ -111,7 +196,19 @@ def run():
     if response is None:
         return
 
-    display_results(response)
+    headers = analyze_headers(response)
+
+    display_results(response, headers)
+
+    json_file, text_file = generate_reports(
+        response,
+        headers
+    )
+
+    print("\nReports Generated")
+    print("-" * 50)
+    print(f"JSON: {json_file}")
+    print(f"TXT:  {text_file}")
 
 
 if __name__ == "__main__":
