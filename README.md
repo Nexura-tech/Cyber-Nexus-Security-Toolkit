@@ -59,37 +59,33 @@ Cyber-Nexus-Security-Toolkit/
 └── README.md
 ```
 ## Requirements
-   Python 3.10+
-   pip
-   Git
+Python 3.10+
+pip
+Git
 
-## Installation
+* Installation
 
 # Clone the repository:
-
-git clone <repository-url>
+git clone https://github.com/Nexura-tech/Cyber-Nexus-Security-Toolkit.git
 cd Cyber-Nexus-Security-Toolkit
 
 # Create a virtual environment:
-
 python3 -m venv .venv
 
-## Activate it:
+* Activate it:
 
 # Linux/macOS:
-
 source .venv/bin/activate
 
 # Windows:
-
 .venv\Scripts\activate
 
 # Install dependencies:
-
 python -m pip install -r requirements.txt
 
 # Run the Toolkit
 python app.py
+
 ## Main Menu
 [1] Password Analyzer
 [2] Hash Generator
@@ -104,36 +100,28 @@ python app.py
 [0] Exit
 
 # Run Tests
-
-Run the complete automated test suite:
-
+* Run the complete automated test suite:
 python -m pytest
 
-Run tests with a shorter traceback:
-
+* Run tests with a shorter traceback:
 python -m pytest --tb=short
-Configuration
 
-Application configuration is centralized in:
-
+#Configuration
+* Application configuration is centralized in:
 core/config.py
 
-The request timeout can be overridden with:
-
+* The request timeout can be overridden with:
 export CYBER_NEXUS_REQUEST_TIMEOUT=15
 
-The default request timeout is:
-
+* The default request timeout is:
 10 seconds
-Reports
 
-Security analysis results can be exported as:
-
+# Reports
+* Security analysis results can be exported as:
 JSON
 TXT
 
-Reports are stored in:
-
+* Reports are stored in:
 reports/
 
 Report filenames include the module name and timestamp.
