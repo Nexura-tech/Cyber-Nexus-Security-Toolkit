@@ -6,6 +6,8 @@ from core.utils import (
     pause,
 )
 
+from core.logger import logger
+
 from modules.password_analyzer.analyzer import (
     run as password_analyzer
 )
@@ -49,6 +51,8 @@ def show_menu():
 
 
 def main():
+    logger.info("Cyber Nexus Security Toolkit started")
+
     while True:
 
         clear_screen()
@@ -57,6 +61,7 @@ def main():
         show_menu()
 
         choice = input("\nSelect an option: ").strip()
+        logger.info("Menu option selected: %s", choice)
 
         clear_screen()
         print_banner()
@@ -90,6 +95,7 @@ def main():
             pause()
 
         elif choice == "0":
+            logger.info("Cyber Nexus Security Toolkit stopped")
             print("\nExiting Cyber Nexus Security Toolkit...")
             break
 
