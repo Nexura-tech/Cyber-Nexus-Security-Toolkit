@@ -12,34 +12,19 @@ from modules.settings.manager import run as settings_manager
 from core.validators import validate_menu_choice
 from core.error_handler import safe_run
 from modules.health_check.checker import run as health_check
+from core.config import APP_VERSION
+from modules.password_analyzer.analyzer import (run as password_analyzer)
 
-from modules.password_analyzer.analyzer import (
-    run as password_analyzer
-)
+from modules.hash_tool.hasher import (run as hash_generator)
+from modules.system_info.info import (run as system_information)
 
-from modules.hash_tool.hasher import (
-    run as hash_generator
-)
+from modules.url_analyzer.analyzer import (run as url_analyzer)
 
-from modules.system_info.info import (
-    run as system_information
-)
+from modules.security_headers.checker import (run as security_header_checker)
 
-from modules.url_analyzer.analyzer import (
-    run as url_analyzer
-)
+from modules.metadata_analyzer.analyzer import (run as metadata_analyzer)
 
-from modules.security_headers.checker import (
-    run as security_header_checker
-)
-
-from modules.metadata_analyzer.analyzer import (
-    run as metadata_analyzer
-)
-
-from modules.log_analyzer.analyzer import (
-    run as log_analyzer
-)
+from modules.log_analyzer.analyzer import (run as log_analyzer)
 
 
 def show_menu():
@@ -60,6 +45,7 @@ def show_menu():
 
 def main():
     logger.info("Cyber Nexus Security Toolkit started")
+    logger.info("Application version: %s", APP_VERSION)
 
     while True:
 

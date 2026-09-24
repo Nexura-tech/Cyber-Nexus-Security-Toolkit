@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 
 from colorama import Fore, Style, init
-
+from core.config import APP_NAME, APP_VERSION
 
 init(autoreset=True)
 
@@ -13,14 +13,9 @@ def clear_screen():
 
 def print_banner():
     print(Fore.CYAN + "=" * 60)
-    print(
-        Fore.CYAN
-        + "        CYBER NEXUS SECURITY TOOLKIT"
-    )
-    print(
-        Fore.WHITE
-        + "        Defensive Security Toolkit"
-    )
+    print(Fore.CYAN + f"        {APP_NAME.upper()}")
+    print(Fore.WHITE + "        Defensive Security Toolkit")
+    print(Fore.YELLOW + f"        Version {APP_VERSION}")
     print(Fore.CYAN + "=" * 60)
 
 
