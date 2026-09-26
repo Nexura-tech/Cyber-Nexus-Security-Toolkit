@@ -146,8 +146,25 @@ def delete_report():
 
         matching_report = None
 
+        selected_path = str(
+            selected.resolve()
+        )
+
         for report in history:
-            if report["report_name"] == selected.name:
+            history_path = str(
+                report["file_path"]
+            )
+
+            if history_path == selected_path:
+                matching_report = report
+                break
+
+            if (
+                report["report_name"] == selected.name
+                and history_path.endswith(
+                    selected.name
+                )
+            ):
                 matching_report = report
                 break
 
@@ -157,19 +174,23 @@ def delete_report():
                 "deleted",
             )
 
-        print(
-            f"\n[+] Deleted: {selected.name}"
-        )
-
-        if matching_report is not None:
             print(
                 "[+] Report history updated: deleted"
             )
+        else:
+            print(
+                "[!] Report history entry not found."
+            )
+
+        print(
+            f"\n[+] Deleted: {selected.name}"
+        )
 
     except OSError as error:
         print(
             f"\n[!] Could not delete report: {error}"
         )
+
 
 
 def clear_reports():
