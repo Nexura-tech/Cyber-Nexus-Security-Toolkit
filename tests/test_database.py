@@ -328,3 +328,37 @@ def test_report_history_negative_limit(
     history = get_report_history(-10)
 
     assert len(history) == 3
+
+def test_update_report_status_rejects_invalid_status(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    add_report_history(
+        report_name="test_report.json",
+        report_type="JSON",
+        file_path="reports/test_report.json",
+        created_at="2026-09-26 10:00:00",
+    )
+
+    history = get_report_history()
+
+    report_id = history[0]["id"]
+
+    result = update_report_status(
+        report_id,
+        "invalid_status",
+    )
+
+    assert result is False
+
+    report = get_report_by_id(report_id)
+
+    assert report is not None
+    assert report["status"] == "available"

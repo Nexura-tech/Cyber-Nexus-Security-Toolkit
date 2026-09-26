@@ -5,6 +5,10 @@ from core.config import BASE_DIR
 
 DATABASE_FILE = BASE_DIR / "cyber_nexus.db"
 
+REPORT_STATUSES = {
+    "available",
+    "deleted",
+}
 
 def get_connection():
     """
@@ -247,6 +251,16 @@ def update_report_status(
     """
     Update the status of a report history entry.
     """
+    status = str(status).strip().lower()
+
+    if status not in REPORT_STATUSES:
+        return False
+
+    try:
+        report_id = int(report_id)
+    except (TypeError, ValueError):
+        return False
+
     initialize_database()
 
     connection = get_connection()
@@ -259,8 +273,8 @@ def update_report_status(
             WHERE id = ?
             """,
             (
-                str(status),
-                int(report_id),
+                status,
+                report_id,
             ),
         )
 
