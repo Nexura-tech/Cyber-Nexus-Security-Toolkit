@@ -1,4 +1,4 @@
-from core.reporter import REPORT_DIR
+from core.config import REPORT_DIR
 from database.manager import (
     get_report_history,
     get_report_by_id,
