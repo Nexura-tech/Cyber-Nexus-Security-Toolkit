@@ -5,6 +5,7 @@ from database.manager import (
     get_report_by_id,
     get_report_history,
     update_report_status,
+    authenticate_user,
     create_user,
     get_user_by_username,
     set_user_active,
@@ -617,3 +618,69 @@ def test_create_duplicate_user():
         assert str(error) == (
             f"Username '{username}' already exists."
         )
+
+
+def test_authenticate_user_success():
+    username = "test_auth_success"
+
+    create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    user = authenticate_user(
+        username,
+        "TestPassword123!",
+    )
+
+    assert user is not None
+    assert user["username"] == username
+    assert user["is_active"] == 1
+
+
+def test_authenticate_user_wrong_password():
+    username = "test_auth_wrong_password"
+
+    create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    user = authenticate_user(
+        username,
+        "WrongPassword",
+    )
+
+    assert user is None
+
+
+def test_authenticate_nonexistent_user():
+    user = authenticate_user(
+        "user_that_does_not_exist",
+        "TestPassword123!",
+    )
+
+    assert user is None
+
+
+def test_authenticate_inactive_user():
+    username = "test_auth_inactive"
+
+    create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    result = set_user_active(
+        username,
+        False,
+    )
+
+    assert result is True
+
+    user = authenticate_user(
+        username,
+        "TestPassword123!",
+    )
+
+    assert user is None
