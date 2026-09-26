@@ -204,6 +204,14 @@ def get_report_history(limit=50):
     """
     initialize_database()
 
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 50
+
+    if limit < 1:
+        limit = 50
+
     connection = get_connection()
 
     try:
