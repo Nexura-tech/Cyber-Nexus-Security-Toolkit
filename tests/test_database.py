@@ -1,6 +1,7 @@
 from database.manager import (
     add_report_history,
     get_connection,
+    get_report_by_file_path,
     get_report_by_id,
     get_report_history,
     update_report_status,
@@ -436,3 +437,68 @@ def test_report_history_complete_workflow(
     assert len(history_after_delete) == 1
     assert history_after_delete[0]["id"] == report_id
     assert history_after_delete[0]["status"] == "deleted"
+
+def test_get_report_by_file_path(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    add_report_history(
+        report_name="security_report.json",
+        report_type="JSON",
+        file_path="/project/reports/security_report.json",
+        created_at="2026-09-26 11:30:00",
+    )
+
+    report = get_report_by_file_path(
+        "/project/reports/security_report.json"
+    )
+
+    assert report is not None
+    assert report["report_name"] == "security_report.json"
+    assert report["report_type"] == "JSON"
+    assert (
+        report["file_path"]
+        == "/project/reports/security_report.json"
+    )
+    assert report["status"] == "available"
+
+
+def test_get_report_by_file_path_not_found(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    report = get_report_by_file_path(
+        "/project/reports/missing.json"
+    )
+
+    assert report is None
+
+
+def test_get_report_by_file_path_invalid_input(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    assert get_report_by_file_path(None) is None
+    assert get_report_by_file_path("") is None
+    assert get_report_by_file_path("   ") is None
