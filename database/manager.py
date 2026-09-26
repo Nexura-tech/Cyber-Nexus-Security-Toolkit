@@ -423,6 +423,16 @@ def create_user(username, password):
 
         return cursor.lastrowid
 
+    except sqlite3.IntegrityError as error:
+        connection.rollback()
+
+        if "users.username" in str(error):
+            raise ValueError(
+                f"Username '{username}' already exists."
+            ) from error
+
+        raise
+
     finally:
         connection.close()
 
