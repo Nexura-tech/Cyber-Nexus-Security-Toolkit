@@ -10,6 +10,7 @@ REPORT_STATUSES = {
     "deleted",
 }
 
+
 def get_connection():
     """
     Create and return a SQLite database connection.
@@ -52,8 +53,6 @@ def initialize_database():
             """
         )
 
-        # Check whether the existing database
-        # already has the status column.
         columns = connection.execute(
             """
             PRAGMA table_info(report_history)
@@ -65,7 +64,6 @@ def initialize_database():
             for column in columns
         }
 
-        # Add status column to older databases.
         if "status" not in column_names:
             connection.execute(
                 """
@@ -206,8 +204,6 @@ def get_report_history(limit=50):
     """
     Return recent report history.
     """
-    initialize_database()
-
     try:
         limit = int(limit)
     except (TypeError, ValueError):
@@ -215,6 +211,8 @@ def get_report_history(limit=50):
 
     if limit < 1:
         limit = 50
+
+    initialize_database()
 
     connection = get_connection()
 
@@ -259,6 +257,9 @@ def update_report_status(
     try:
         report_id = int(report_id)
     except (TypeError, ValueError):
+        return False
+
+    if report_id < 1:
         return False
 
     initialize_database()
