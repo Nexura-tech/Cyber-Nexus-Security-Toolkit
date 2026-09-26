@@ -44,11 +44,18 @@ def verify_password(password, stored_hash):
         return False
 
     try:
-        algorithm_part, salt_hex, hash_hex = (
+        algorithm_part, iterations, salt_hex, hash_hex = (
             stored_hash.split("$")
         )
 
-        algorithm, iterations = algorithm_part.split("_")
+        if not algorithm_part.startswith("pbkdf2_"):
+            return False
+
+        algorithm = algorithm_part.replace(
+            "pbkdf2_",
+            "",
+            1,
+        )
 
         iterations = int(iterations)
 

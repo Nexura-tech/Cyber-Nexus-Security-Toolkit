@@ -1,9 +1,8 @@
 import sqlite3
-
 from core.config import BASE_DIR
-
 from core.passwords import hash_password
 from core.utils import get_timestamp
+from core.passwords import hash_password, verify_password
 
 DATABASE_FILE = BASE_DIR / "cyber_nexus.db"
 
@@ -436,6 +435,39 @@ def create_user(username, password):
     finally:
         connection.close()
 
+def authenticate_user(username, password):
+    """
+    Authenticate a user using username and password.
+
+    Returns the user dictionary when authentication succeeds.
+    Returns None when authentication fails.
+    """
+    if username is None:
+        return None
+
+    if not isinstance(password, str):
+        return None
+
+    username = str(username).strip()
+
+    if not username or not password:
+        return None
+
+    user = get_user_by_username(username)
+
+    if user is None:
+        return None
+
+    if not user["is_active"]:
+        return None
+
+    if not verify_password(
+        password,
+        user["password_hash"],
+    ):
+        return None
+
+    return user
 
 def get_user_by_username(username):
     """
