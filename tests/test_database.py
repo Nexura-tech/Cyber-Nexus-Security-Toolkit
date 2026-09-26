@@ -255,3 +255,76 @@ def test_update_nonexistent_report_status(
     )
 
     assert result is False
+
+def test_report_history_invalid_limit(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    for number in range(3):
+        add_report_history(
+            report_name=f"report_{number}.json",
+            report_type="JSON",
+            file_path=f"reports/report_{number}.json",
+            created_at="2026-09-26 10:00:00",
+        )
+
+    history = get_report_history(
+        "invalid"
+    )
+
+    assert len(history) == 3
+
+
+def test_report_history_zero_limit(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    for number in range(3):
+        add_report_history(
+            report_name=f"report_{number}.json",
+            report_type="JSON",
+            file_path=f"reports/report_{number}.json",
+            created_at="2026-09-26 10:00:00",
+        )
+
+    history = get_report_history(0)
+
+    assert len(history) == 3
+
+
+def test_report_history_negative_limit(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    for number in range(3):
+        add_report_history(
+            report_name=f"report_{number}.json",
+            report_type="JSON",
+            file_path=f"reports/report_{number}.json",
+            created_at="2026-09-26 10:00:00",
+        )
+
+    history = get_report_history(-10)
+
+    assert len(history) == 3
