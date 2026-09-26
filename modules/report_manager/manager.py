@@ -1,5 +1,9 @@
 from core.reporter import REPORT_DIR
-from database.manager import get_report_history
+from database.manager import (
+    get_report_history,
+    get_report_by_id,
+    update_report_status,
+)
 
 def get_reports():
     """Return available report files sorted by newest first."""
@@ -102,7 +106,7 @@ def search_reports():
 
 
 def delete_report():
-    """Delete one selected report."""
+    """Delete one selected report and update its database status."""
     reports = get_reports()
 
     if not reports:
@@ -137,7 +141,30 @@ def delete_report():
 
     try:
         selected.unlink()
-        print(f"\n[+] Deleted: {selected.name}")
+
+        history = get_report_history()
+
+        matching_report = None
+
+        for report in history:
+            if report["report_name"] == selected.name:
+                matching_report = report
+                break
+
+        if matching_report is not None:
+            update_report_status(
+                matching_report["id"],
+                "deleted",
+            )
+
+        print(
+            f"\n[+] Deleted: {selected.name}"
+        )
+
+        if matching_report is not None:
+            print(
+                "[+] Report history updated: deleted"
+            )
 
     except OSError as error:
         print(
@@ -189,6 +216,7 @@ def show_report_history():
         print(f"Name:        {report['report_name']}")
         print(f"Type:        {report['report_type']}")
         print(f"Created At:  {report['created_at']}")
+        print(f"Status:      {report['status']}")
         print(f"File Path:   {report['file_path']}")
         print("-" * 80)
 
