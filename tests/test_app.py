@@ -1,5 +1,5 @@
-from app import login
-
+from app import login, logout
+from core.session import Session
 
 def test_login_success(monkeypatch):
     class FakeUser:
@@ -83,3 +83,33 @@ def test_login_invalid_credentials(monkeypatch):
     result = login()
 
     assert result is None
+def test_logout_success(capsys):
+    session = Session()
+
+    session.login({
+        "id": 1,
+        "username": "testuser",
+        "is_active": 1,
+    })
+
+    result = logout(session)
+
+    assert result is True
+    assert session.is_authenticated() is False
+    assert session.get_username() is None
+
+    output = capsys.readouterr().out
+
+    assert "logged out successfully" in output
+
+def test_logout_without_login(capsys):
+    session = Session()
+
+    result = logout(session)
+
+    assert result is False
+    assert session.is_authenticated() is False
+
+    output = capsys.readouterr().out
+
+    assert "No user is currently logged in." in output

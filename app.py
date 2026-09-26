@@ -4,6 +4,8 @@ from core.utils import (
     print_section,
     print_success,
     print_error,
+    print_warning,
+    print_info,
     pause,
 )
 
@@ -52,6 +54,29 @@ def login():
     )
 
     return user
+
+def logout(session):
+    """
+    Log out the current user and clear the session.
+    """
+    username = session.get_username()
+
+    if not session.is_authenticated():
+        print_warning("No user is currently logged in.")
+        return False
+
+    session.logout()
+
+    print_success(
+        f"User '{username}' logged out successfully."
+    )
+
+    logger.info(
+        "User '%s' logged out.",
+        username,
+    )
+
+    return True
 
 def show_menu():
     print_section("MAIN MENU")
