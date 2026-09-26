@@ -5,7 +5,11 @@ from database.manager import (
     get_report_by_id,
     get_report_history,
     update_report_status,
+    create_user,
+    get_user_by_username,
+    set_user_active,
 )
+from core.passwords import verify_password
 
 
 def test_database_connection(tmp_path, monkeypatch):
@@ -502,3 +506,114 @@ def test_get_report_by_file_path_invalid_input(
     assert get_report_by_file_path(None) is None
     assert get_report_by_file_path("") is None
     assert get_report_by_file_path("   ") is None
+
+def test_create_user():
+    username = "test_create_user"
+
+    user_id = create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    assert isinstance(user_id, int)
+    assert user_id > 0
+
+    user = get_user_by_username(username)
+
+    assert user is not None
+    assert user["username"] == username
+    assert user["is_active"] == 1
+
+
+def test_password_is_hashed():
+    username = "test_password_hash"
+
+    create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    user = get_user_by_username(username)
+
+    assert user is not None
+
+    assert user["password_hash"] != "TestPassword123!"
+
+    assert verify_password(
+        "TestPassword123!",
+        user["password_hash"],
+    )
+
+    assert not verify_password(
+        "WrongPassword",
+        user["password_hash"],
+    )
+
+
+def test_get_nonexistent_user():
+    user = get_user_by_username(
+        "this_user_does_not_exist"
+    )
+
+    assert user is None
+
+
+def test_set_user_active():
+    username = "test_user_active"
+
+    create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    result = set_user_active(
+        username,
+        False,
+    )
+
+    assert result is True
+
+    user = get_user_by_username(username)
+
+    assert user is not None
+    assert user["is_active"] == 0
+
+    result = set_user_active(
+        username,
+        True,
+    )
+
+    assert result is True
+
+    user = get_user_by_username(username)
+
+    assert user["is_active"] == 1
+
+
+def test_set_user_active_nonexistent():
+    result = set_user_active(
+        "nonexistent_user_12345",
+        False,
+    )
+
+    assert result is False
+
+def test_create_duplicate_user():
+    username = "test_duplicate_user"
+
+    create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    try:
+        create_user(
+            username,
+            "AnotherPassword123!",
+        )
+        assert False, "Expected ValueError for duplicate username."
+
+    except ValueError as error:
+        assert str(error) == (
+            f"Username '{username}' already exists."
+        )
