@@ -2,6 +2,8 @@ import sqlite3
 
 from core.config import BASE_DIR
 
+from core.passwords import hash_password
+from core.utils import get_timestamp
 
 DATABASE_FILE = BASE_DIR / "cyber_nexus.db"
 
@@ -376,6 +378,129 @@ def get_report_by_id(report_id):
             return None
 
         return dict(row)
+
+    finally:
+        connection.close()
+
+def create_user(username, password):
+    """
+    Create a new user with a securely hashed password.
+    """
+    username = str(username).strip()
+
+    if not username:
+        raise ValueError("Username cannot be empty.")
+
+    if not isinstance(password, str) or not password:
+        raise ValueError("Password cannot be empty.")
+
+    initialize_database()
+
+    password_hash = hash_password(password)
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO users (
+                username,
+                password_hash,
+                created_at,
+                is_active
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                username,
+                password_hash,
+                get_timestamp(),
+                1,
+            ),
+        )
+
+        connection.commit()
+
+        return cursor.lastrowid
+
+    finally:
+        connection.close()
+
+
+def get_user_by_username(username):
+    """
+    Retrieve a user by username.
+    """
+    if username is None:
+        return None
+
+    username = str(username).strip()
+
+    if not username:
+        return None
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                username,
+                password_hash,
+                created_at,
+                is_active
+            FROM users
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return dict(row)
+
+    finally:
+        connection.close()
+
+
+def set_user_active(username, is_active):
+    """
+    Activate or deactivate a user account.
+    """
+    if username is None:
+        return False
+
+    username = str(username).strip()
+
+    if not username:
+        return False
+
+    is_active = 1 if bool(is_active) else 0
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE users
+            SET is_active = ?
+            WHERE username = ?
+            """,
+            (
+                is_active,
+                username,
+            ),
+        )
+
+        connection.commit()
+
+        return cursor.rowcount > 0
 
     finally:
         connection.close()
