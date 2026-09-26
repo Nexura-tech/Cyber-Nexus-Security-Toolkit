@@ -1,8 +1,12 @@
 import sqlite3
+
 from core.config import BASE_DIR
-from core.passwords import hash_password
+from core.passwords import (
+    hash_password,
+    verify_password,
+)
 from core.utils import get_timestamp
-from core.passwords import hash_password, verify_password
+
 
 DATABASE_FILE = BASE_DIR / "cyber_nexus.db"
 
@@ -547,6 +551,58 @@ def set_user_active(username, is_active):
     finally:
         connection.close()
 
+def get_all_users():
+    """
+    Retrieve all users without exposing password hashes.
+    """
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                id,
+                username,
+                created_at,
+                is_active
+            FROM users
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+        return [dict(row) for row in rows]
+
+    finally:
+        connection.close()
+
+def test_get_all_users():
+    username = "test_get_all_users"
+
+    create_user(
+        username,
+        "TestPassword123!",
+    )
+
+    users = get_all_users()
+
+    assert isinstance(users, list)
+    assert len(users) >= 1
+
+    user = next(
+        (
+            item
+            for item in users
+            if item["username"] == username
+        ),
+        None,
+    )
+
+    assert user is not None
+    assert user["username"] == username
+    assert user["is_active"] == 1
+    assert "password_hash" not in user
 
 if __name__ == "__main__":
     initialize_database()
