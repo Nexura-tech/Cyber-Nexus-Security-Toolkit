@@ -286,6 +286,47 @@ def update_report_status(
     finally:
         connection.close()
 
+def get_report_by_file_path(file_path):
+    """
+    Retrieve a report history entry by file path.
+    """
+    if file_path is None:
+        return None
+
+    file_path = str(file_path).strip()
+
+    if not file_path:
+        return None
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                report_name,
+                report_type,
+                file_path,
+                created_at,
+                status
+            FROM report_history
+            WHERE file_path = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (file_path,),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return dict(row)
+
+    finally:
+        connection.close()
 
 def get_report_by_id(report_id):
     """

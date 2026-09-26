@@ -1,7 +1,7 @@
 from core.config import REPORT_DIR
 from database.manager import (
     get_report_history,
-    get_report_by_id,
+    get_report_by_file_path,
     update_report_status,
 )
 
@@ -140,37 +140,19 @@ def delete_report():
         return
 
     try:
-        selected.unlink()
-
-        history = get_report_history()
-
-        matching_report = None
-
         selected_path = str(
             selected.resolve()
         )
 
-        for report in history:
-            history_path = str(
-                report["file_path"]
-            )
+        report = get_report_by_file_path(
+            selected_path
+        )
 
-            if history_path == selected_path:
-                matching_report = report
-                break
+        selected.unlink()
 
-            if (
-                report["report_name"] == selected.name
-                and history_path.endswith(
-                    selected.name
-                )
-            ):
-                matching_report = report
-                break
-
-        if matching_report is not None:
+        if report is not None:
             update_report_status(
-                matching_report["id"],
+                report["id"],
                 "deleted",
             )
 
