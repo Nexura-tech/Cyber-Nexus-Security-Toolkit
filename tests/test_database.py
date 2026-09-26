@@ -1,7 +1,9 @@
 from database.manager import (
     add_report_history,
     get_connection,
+    get_report_by_id,
     get_report_history,
+    update_report_status,
 )
 
 
@@ -153,6 +155,7 @@ def test_report_history(tmp_path, monkeypatch):
     assert report["report_type"] == "JSON"
     assert report["file_path"] == "reports/test_report.json"
     assert report["created_at"] == "2026-09-25 03:30:00"
+    assert report["status"] == "available"
 
 
 def test_report_history_limit(tmp_path, monkeypatch):
@@ -174,3 +177,81 @@ def test_report_history_limit(tmp_path, monkeypatch):
     history = get_report_history(limit=3)
 
     assert len(history) == 3
+
+
+def test_get_report_by_id(tmp_path, monkeypatch):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    add_report_history(
+        report_name="test_report.json",
+        report_type="JSON",
+        file_path="reports/test_report.json",
+        created_at="2026-09-25 03:30:00",
+    )
+
+    history = get_report_history()
+
+    report_id = history[0]["id"]
+
+    report = get_report_by_id(report_id)
+
+    assert report is not None
+    assert report["id"] == report_id
+    assert report["report_name"] == "test_report.json"
+    assert report["status"] == "available"
+
+
+def test_update_report_status(tmp_path, monkeypatch):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    add_report_history(
+        report_name="test_report.json",
+        report_type="JSON",
+        file_path="reports/test_report.json",
+        created_at="2026-09-25 03:30:00",
+    )
+
+    history = get_report_history()
+
+    report_id = history[0]["id"]
+
+    result = update_report_status(
+        report_id,
+        "deleted",
+    )
+
+    assert result is True
+
+    report = get_report_by_id(report_id)
+
+    assert report is not None
+    assert report["status"] == "deleted"
+
+
+def test_update_nonexistent_report_status(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    result = update_report_status(
+        99999,
+        "deleted",
+    )
+
+    assert result is False
