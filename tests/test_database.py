@@ -378,3 +378,61 @@ def test_get_report_by_id_invalid_input(
     assert get_report_by_id(None) is None
     assert get_report_by_id(0) is None
     assert get_report_by_id(-1) is None
+
+def test_report_history_complete_workflow(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    # Step 1: Create report history
+    add_report_history(
+        report_name="security_report.json",
+        report_type="JSON",
+        file_path="reports/security_report.json",
+        created_at="2026-09-26 11:00:00",
+    )
+
+    # Step 2: Verify report exists
+    history = get_report_history()
+
+    assert len(history) == 1
+
+    report_id = history[0]["id"]
+
+    assert history[0]["status"] == "available"
+
+    # Step 3: Retrieve report directly
+    report = get_report_by_id(report_id)
+
+    assert report is not None
+    assert report["report_name"] == "security_report.json"
+    assert report["status"] == "available"
+
+    # Step 4: Mark report as deleted
+    result = update_report_status(
+        report_id,
+        "deleted",
+    )
+
+    assert result is True
+
+    # Step 5: Verify status changed
+    updated_report = get_report_by_id(
+        report_id
+    )
+
+    assert updated_report is not None
+    assert updated_report["status"] == "deleted"
+
+    # Step 6: Verify history was not removed
+    history_after_delete = get_report_history()
+
+    assert len(history_after_delete) == 1
+    assert history_after_delete[0]["id"] == report_id
+    assert history_after_delete[0]["status"] == "deleted"
