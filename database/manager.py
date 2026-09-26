@@ -290,6 +290,14 @@ def get_report_by_id(report_id):
     """
     Retrieve a single report history entry by ID.
     """
+    try:
+        report_id = int(report_id)
+    except (TypeError, ValueError):
+        return None
+
+    if report_id < 1:
+        return None
+
     initialize_database()
 
     connection = get_connection()
@@ -307,7 +315,7 @@ def get_report_by_id(report_id):
             FROM report_history
             WHERE id = ?
             """,
-            (int(report_id),),
+            (report_id,),
         ).fetchone()
 
         if row is None:

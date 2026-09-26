@@ -362,3 +362,19 @@ def test_update_report_status_rejects_invalid_status(
 
     assert report is not None
     assert report["status"] == "available"
+
+def test_get_report_by_id_invalid_input(
+    tmp_path,
+    monkeypatch,
+):
+    database_file = tmp_path / "test.db"
+
+    monkeypatch.setattr(
+        "database.manager.DATABASE_FILE",
+        database_file,
+    )
+
+    assert get_report_by_id("invalid") is None
+    assert get_report_by_id(None) is None
+    assert get_report_by_id(0) is None
+    assert get_report_by_id(-1) is None
