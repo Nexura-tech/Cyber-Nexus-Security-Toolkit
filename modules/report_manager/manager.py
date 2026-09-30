@@ -190,8 +190,7 @@ def delete_report():
 
 
 def clear_reports():
-    """Delete all generated reports after confirmation."""
-
+    """Delete all generated reports and update their database status."""
     reports = get_reports()
 
     if not reports:
@@ -203,24 +202,30 @@ def clear_reports():
     ).strip().lower()
 
     if confirm != "y":
-        print(
-            "\n[!] Clear operation cancelled."
-        )
+        print("\n[!] Clear operation cancelled.")
         return
 
     deleted = 0
 
     for report in reports:
         try:
+            report_path = str(report.resolve())
+
+            history = get_report_by_file_path(report_path)
+
             report.unlink()
             deleted += 1
+
+            if history is not None:
+                update_report_status(
+                    history["id"],
+                    "deleted",
+                )
 
         except OSError:
             pass
 
-    print(
-        f"\n[+] Deleted {deleted} report(s)."
-    )
+    print(f"\n[+] Deleted {deleted} report(s).")
 
 
 def show_report_history():
