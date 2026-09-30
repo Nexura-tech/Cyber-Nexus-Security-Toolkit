@@ -684,3 +684,336 @@ def test_authenticate_inactive_user():
     )
 
     assert user is None
+
+def test_create_user_always_creates_normal_user():
+    from database.manager import (
+        create_user,
+        get_user_by_username,
+    )
+
+    create_user("normaltest", "TestPassword123!")
+
+    user = get_user_by_username("normaltest")
+
+    assert user is not None
+    assert user["role"] == "user"
+
+
+def test_create_first_admin_only_allows_sabbo():
+    from database.manager import (
+        create_first_admin,
+        get_user_by_username,
+    )
+
+    create_first_admin("Sabbo", "AdminPassword123!")
+
+    user = get_user_by_username("Sabbo")
+
+    assert user is not None
+    assert user["role"] == "admin"
+
+
+def test_create_first_admin_rejects_other_username():
+    from database.manager import create_first_admin
+
+    try:
+        create_first_admin("OtherAdmin", "AdminPassword123!")
+        assert False
+    except ValueError as error:
+        assert "Sabbo" in str(error)
+
+
+def test_create_first_admin_allows_only_one_admin():
+    from database.manager import (
+        create_first_admin,
+        get_admin_count,
+    )
+
+    if get_admin_count() == 0:
+        create_first_admin(
+            "Sabbo",
+            "AdminPassword123!",
+        )
+
+    assert get_admin_count() == 1
+
+    try:
+        create_first_admin(
+            "Sabbo",
+            "AnotherPassword123!",
+        )
+        assert False
+    except ValueError as error:
+        assert "already exists" in str(error)
+
+    assert get_admin_count() == 1
+
+def test_ensure_admin_account_creates_sabbo():
+    from database.manager import (
+        ensure_admin_account,
+        get_user_by_username,
+    )
+
+    result = ensure_admin_account(
+        "AdminPassword123!"
+    )
+
+    assert result is True
+
+    user = get_user_by_username("Sabbo")
+
+    assert user is not None
+    assert user["role"] == "admin"
+
+
+def test_ensure_admin_account_does_not_create_second_admin():
+    from database.manager import ensure_admin_account
+
+    ensure_admin_account(
+        "AdminPassword123!"
+    )
+
+    result = ensure_admin_account(
+        "AnotherPassword123!"
+    )
+
+    assert result is False
+
+
+def test_ensure_admin_account_does_not_change_existing_user():
+    from database.manager import (
+        create_user,
+        ensure_admin_account,
+        get_user_by_username,
+    )
+
+    create_user(
+        "normaluser",
+        "UserPassword123!",
+    )
+
+    ensure_admin_account(
+        "AdminPassword123!"
+    )
+
+    user = get_user_by_username("normaluser")
+
+    assert user is not None
+    assert user["role"] == "user"
+
+def test_get_login_security_returns_default_values():
+    from database.manager import (
+        create_user,
+        get_login_security,
+    )
+
+    create_user(
+        "securitytest",
+        "TestPassword123!",
+    )
+
+    security = get_login_security(
+        "securitytest"
+    )
+
+    assert security is not None
+    assert security["username"] == "securitytest"
+    assert security["failed_login_attempts"] == 0
+    assert security["locked_until"] is None
+
+
+def test_update_login_security():
+    from database.manager import (
+        create_user,
+        get_login_security,
+        update_login_security,
+    )
+
+    create_user(
+        "securitytest",
+        "TestPassword123!",
+    )
+
+    result = update_login_security(
+        "securitytest",
+        3,
+        "2026-09-27 01:30:00",
+    )
+
+    assert result is True
+
+    security = get_login_security(
+        "securitytest"
+    )
+
+    assert security["failed_login_attempts"] == 3
+    assert (
+        security["locked_until"]
+        == "2026-09-27 01:30:00"
+    )
+
+
+def test_update_login_security_unknown_user():
+    from database.manager import (
+        update_login_security,
+    )
+
+    result = update_login_security(
+        "unknownuser",
+        1,
+    )
+
+    assert result is False
+
+def test_authenticate_user_increments_failed_attempts():
+    from database.manager import (
+        authenticate_user,
+        create_user,
+        get_login_security,
+    )
+
+    create_user(
+        "locktest",
+        "CorrectPassword123!",
+    )
+
+    result = authenticate_user(
+        "locktest",
+        "WrongPassword",
+    )
+
+    assert result is None
+
+    security = get_login_security("locktest")
+
+    assert security["failed_login_attempts"] == 1
+    assert security["locked_until"] is None
+
+
+def test_authenticate_user_resets_failed_attempts_on_success():
+    from database.manager import (
+        authenticate_user,
+        create_user,
+        get_login_security,
+        update_login_security,
+    )
+
+    create_user(
+        "resettst",
+        "CorrectPassword123!",
+    )
+
+    update_login_security(
+        "resettst",
+        3,
+        None,
+    )
+
+    result = authenticate_user(
+        "resettst",
+        "CorrectPassword123!",
+    )
+
+    assert result is not None
+
+    security = get_login_security("resettst")
+
+    assert security["failed_login_attempts"] == 0
+    assert security["locked_until"] is None
+
+
+def test_authenticate_user_locks_after_max_attempts():
+    from database.manager import (
+        authenticate_user,
+        create_user,
+        get_login_security,
+    )
+    from core.config import MAX_LOGIN_ATTEMPTS
+
+    create_user(
+        "lockuser",
+        "CorrectPassword123!",
+    )
+
+    for _ in range(MAX_LOGIN_ATTEMPTS):
+        result = authenticate_user(
+            "lockuser",
+            "WrongPassword",
+        )
+
+        assert result is None
+
+    security = get_login_security("lockuser")
+
+    assert (
+        security["failed_login_attempts"]
+        == MAX_LOGIN_ATTEMPTS
+    )
+
+    assert security["locked_until"] is not None
+
+
+def test_locked_user_cannot_login_with_correct_password():
+    from database.manager import (
+        authenticate_user,
+        create_user,
+        get_login_security,
+    )
+    from core.config import MAX_LOGIN_ATTEMPTS
+
+    create_user(
+        "blockeduser",
+        "CorrectPassword123!",
+    )
+
+    for _ in range(MAX_LOGIN_ATTEMPTS):
+        authenticate_user(
+            "blockeduser",
+            "WrongPassword",
+        )
+
+    result = authenticate_user(
+        "blockeduser",
+        "CorrectPassword123!",
+    )
+
+    assert result is None
+
+    security = get_login_security(
+        "blockeduser"
+    )
+
+    assert security["locked_until"] is not None
+
+def test_expired_lockout_allows_correct_password():
+    from database.manager import (
+        authenticate_user,
+        create_user,
+        get_login_security,
+        update_login_security,
+    )
+
+    create_user(
+        "expiredlock",
+        "CorrectPassword123!",
+    )
+
+    update_login_security(
+        "expiredlock",
+        5,
+        "2000-01-01T00:00:00",
+    )
+
+    result = authenticate_user(
+        "expiredlock",
+        "CorrectPassword123!",
+    )
+
+    assert result is not None
+
+    security = get_login_security(
+        "expiredlock"
+    )
+
+    assert security["failed_login_attempts"] == 0
+    assert security["locked_until"] is None

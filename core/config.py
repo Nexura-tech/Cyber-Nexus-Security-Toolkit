@@ -1,11 +1,12 @@
+from dotenv import load_dotenv
 import os
 from pathlib import Path
-
+ADMIN_USERNAME = "Sabbo"
 
 APP_NAME = "Cyber Nexus Security Toolkit"
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+if os.getenv("PYTEST_CURRENT_TEST") is None:
+    load_dotenv(BASE_DIR / ".env")
 REPORT_DIR = BASE_DIR / "reports"
 LOG_DIR = BASE_DIR / "logs"
 LOG_FILE = LOG_DIR / "toolkit.log"
@@ -46,3 +47,15 @@ REQUEST_TIMEOUT = get_int_env(
 
 REPORT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
+
+MAX_LOGIN_ATTEMPTS = get_int_env(
+    "CYBER_NEXUS_MAX_LOGIN_ATTEMPTS",
+    5,
+    minimum=1,
+)
+
+LOGIN_LOCKOUT_SECONDS = get_int_env(
+    "CYBER_NEXUS_LOGIN_LOCKOUT_SECONDS",
+    60,
+    minimum=1,
+)

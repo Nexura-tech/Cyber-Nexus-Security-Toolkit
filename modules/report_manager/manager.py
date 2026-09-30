@@ -1,12 +1,15 @@
 from core.config import REPORT_DIR
+
 from database.manager import (
     get_report_history,
     get_report_by_file_path,
     update_report_status,
 )
 
+
 def get_reports():
     """Return available report files sorted by newest first."""
+
     reports = [
         report
         for report in REPORT_DIR.glob("*")
@@ -22,6 +25,7 @@ def get_reports():
 
 def list_reports():
     """Display all available reports."""
+
     reports = get_reports()
 
     if not reports:
@@ -43,6 +47,7 @@ def list_reports():
 
 def view_latest_report():
     """Display the newest report."""
+
     reports = get_reports()
 
     if not reports:
@@ -65,17 +70,22 @@ def view_latest_report():
         )
 
     except OSError as error:
-        print(f"[!] Could not read report: {error}")
+        print(
+            f"[!] Could not read report: {error}"
+        )
 
 
 def search_reports():
     """Search report contents for a keyword."""
+
     keyword = input(
         "\nEnter keyword to search: "
     ).strip().lower()
 
     if not keyword:
-        print("\n[!] Search keyword cannot be empty.")
+        print(
+            "\n[!] Search keyword cannot be empty."
+        )
         return
 
     reports = get_reports()
@@ -98,7 +108,9 @@ def search_reports():
     print("-" * 70)
 
     if not matches:
-        print("[!] No matching reports found.")
+        print(
+            "[!] No matching reports found."
+        )
         return
 
     for report in matches:
@@ -107,6 +119,7 @@ def search_reports():
 
 def delete_report():
     """Delete one selected report and update its database status."""
+
     reports = get_reports()
 
     if not reports:
@@ -126,7 +139,9 @@ def delete_report():
     index = int(choice) - 1
 
     if index < 0 or index >= len(reports):
-        print("\n[!] Report number out of range.")
+        print(
+            "\n[!] Report number out of range."
+        )
         return
 
     selected = reports[index]
@@ -174,9 +189,9 @@ def delete_report():
         )
 
 
-
 def clear_reports():
     """Delete all generated reports after confirmation."""
+
     reports = get_reports()
 
     if not reports:
@@ -188,7 +203,9 @@ def clear_reports():
     ).strip().lower()
 
     if confirm != "y":
-        print("\n[!] Clear operation cancelled.")
+        print(
+            "\n[!] Clear operation cancelled."
+        )
         return
 
     deleted = 0
@@ -201,31 +218,142 @@ def clear_reports():
         except OSError:
             pass
 
-    print(f"\n[+] Deleted {deleted} report(s).")
+    print(
+        f"\n[+] Deleted {deleted} report(s)."
+    )
+
 
 def show_report_history():
     """Display report history stored in the database."""
+
     history = get_report_history()
 
     print("\nReport History")
     print("-" * 80)
 
     if not history:
-        print("[!] No report history found.")
+        print(
+            "[!] No report history found."
+        )
         return
 
     for report in history:
-        print(f"ID:          {report['id']}")
-        print(f"Name:        {report['report_name']}")
-        print(f"Type:        {report['report_type']}")
-        print(f"Created At:  {report['created_at']}")
-        print(f"Status:      {report['status']}")
-        print(f"File Path:   {report['file_path']}")
+        print(
+            f"ID:          {report['id']}"
+        )
+        print(
+            f"Name:        {report['report_name']}"
+        )
+        print(
+            f"Type:        {report['report_type']}"
+        )
+        print(
+            f"Created At:  {report['created_at']}"
+        )
+        print(
+            f"Status:      {report['status']}"
+        )
+        print(
+            f"File Path:   {report['file_path']}"
+        )
         print("-" * 80)
+
+
+def show_report_details():
+    """Display detailed information about a selected report."""
+
+    reports = get_reports()
+
+    if not reports:
+        print("\n[!] No reports found.")
+        return
+
+    list_reports()
+
+    choice = input(
+        "\nEnter report number to view details: "
+    ).strip()
+
+    if not choice.isdigit():
+        print("\n[!] Invalid selection.")
+        return
+
+    index = int(choice) - 1
+
+    if index < 0 or index >= len(reports):
+        print(
+            "\n[!] Report number out of range."
+        )
+        return
+
+    selected = reports[index]
+
+    try:
+        file_path = str(
+            selected.resolve()
+        )
+
+        report = get_report_by_file_path(
+            file_path
+        )
+
+        file_size = selected.stat().st_size
+
+        modified_time = selected.stat().st_mtime
+
+        print("\nReport Details")
+        print("-" * 70)
+
+        print(
+            f"File Name   : {selected.name}"
+        )
+
+        print(
+            f"File Path   : {file_path}"
+        )
+
+        print(
+            f"File Size   : {file_size} bytes"
+        )
+
+        print(
+            f"Modified    : {modified_time}"
+        )
+
+        if report is not None:
+            print(
+                f"Report ID   : {report['id']}"
+            )
+
+            print(
+                f"Report Type : {report['report_type']}"
+            )
+
+            print(
+                f"Created At  : {report['created_at']}"
+            )
+
+            print(
+                f"Status      : {report['status']}"
+            )
+
+        else:
+            print(
+                "Database    : History entry not found"
+            )
+
+    except OSError as error:
+        print(
+            f"\n[!] Could not read report details: "
+            f"{error}"
+        )
+
 
 def run():
     """Run the Reports Manager menu."""
+
     while True:
+
         print("\nReports Manager")
         print("-" * 40)
 
@@ -235,6 +363,7 @@ def run():
         print("[4] Delete Report")
         print("[5] Clear Reports")
         print("[6] Report History")
+        print("[7] Report Details")
         print("[0] Back")
 
         choice = input(
@@ -258,6 +387,9 @@ def run():
 
         elif choice == "6":
             show_report_history()
+
+        elif choice == "7":
+            show_report_details()
 
         elif choice == "0":
             break

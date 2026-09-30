@@ -1,5 +1,11 @@
+from getpass import getpass
+
 from core.commands import COMMANDS
-from core.config import APP_NAME, APP_VERSION
+from core.config import (
+    APP_NAME,
+    APP_VERSION,
+    MAX_LOGIN_ATTEMPTS,
+)
 from core.logger import logger
 from core.session import Session
 from core.utils import (
@@ -16,41 +22,138 @@ from core.validators import validate_menu_choice
 
 from database.manager import (
     authenticate_user,
+    create_first_admin,
+    get_admin_count,
+    get_user_count,
     initialize_database,
     set_metadata,
 )
 
 
-def show_menu():
-    """
-    Display the main toolkit menu.
-    """
+def show_menu(session):
     print_section("Main Menu")
 
-    for number, (name, _) in COMMANDS.items():
-        print(f"{number}. {name}")
+    print("1. Password Analyzer")
+    print("2. Hash Generator")
+    print("3. System Information")
+    print("4. URL Analyzer")
+    print("5. Security Header Checker")
+    print("6. File Metadata Analyzer")
+    print("7. Log Analyzer")
+    print("8. Reports Manager")
+    print("9. Health Check")
+    print("10. Settings")
+    print("11. Security Dashboard")
 
-    print("11. Logout")
+    if session.is_admin():
+        print("12. User Management")
+
+    print("13. Logout")
     print("0. Exit")
 
 
-def login():
+def setup_first_admin():
+    """
+    Create the first administrator account.
+
+    The administrator username is fixed by configuration.
+    """
+
+    from core.config import ADMIN_USERNAME
+
+    print_section("First-Time Administrator Setup")
+
+    print_info(
+        f"Administrator username: {ADMIN_USERNAME}"
+    )
+
+    password = getpass(
+        "Create administrator password: "
+    )
+
+    if not password:
+        print_error(
+            "Password cannot be empty."
+        )
+        return False
+
+    confirm_password = getpass(
+        "Confirm administrator password: "
+    )
+
+    if password != confirm_password:
+        print_error(
+            "Passwords do not match."
+        )
+        return False
+
+    try:
+        create_first_admin(
+            ADMIN_USERNAME,
+            password,
+        )
+
+        print_success(
+            f"Administrator '{ADMIN_USERNAME}' "
+            "created successfully."
+        )
+
+        pause()
+
+        return True
+
+    except ValueError as error:
+        print_error(str(error))
+        return False
+
+
+def login(session=None):
     """
     Authenticate a user before allowing access
     to the main toolkit menu.
+
+    The session parameter is optional so existing
+    tests can continue to call login() directly.
     """
+
+    if session is None:
+        session = Session()
+
     print_section("User Login")
 
-    username = input("Username: ").strip()
+    username = input(
+        "Username: "
+    ).strip()
 
     if not username:
-        print_error("Username cannot be empty.")
+        print_error(
+            "Username cannot be empty."
+        )
         return None
 
-    password = input("Password: ")
+    if (
+        session.get_failed_login_attempts()
+        >= MAX_LOGIN_ATTEMPTS
+    ):
+        print_error(
+            "Too many failed login attempts."
+        )
+
+        print_warning(
+            "Please restart the application "
+            "before trying again."
+        )
+
+        return None
+
+    password = getpass(
+        "Password: "
+    )
 
     if not password:
-        print_error("Password cannot be empty.")
+        print_error(
+            "Password cannot be empty."
+        )
         return None
 
     user = authenticate_user(
@@ -59,11 +162,40 @@ def login():
     )
 
     if user is None:
-        print_error("Invalid username or password.")
+
+        session.record_failed_login()
+
+        remaining = (
+            MAX_LOGIN_ATTEMPTS
+            - session.get_failed_login_attempts()
+        )
+
+        print_error(
+            "Invalid username or password."
+        )
+
+        if remaining > 0:
+            print_warning(
+                f"Login attempts remaining: "
+                f"{remaining}"
+            )
+        else:
+            print_warning(
+                "Maximum login attempts reached."
+            )
+
         return None
+
+    session.reset_failed_logins()
 
     print_success(
         f"Welcome, {user['username']}!"
+    )
+
+    logger.info(
+        "User '%s' logged in with role '%s'.",
+        user["username"],
+        user["role"],
     )
 
     return user
@@ -73,6 +205,7 @@ def logout(session):
     """
     Log out the current user and clear the session.
     """
+
     username = session.get_username()
 
     if not session.is_authenticated():
@@ -95,14 +228,36 @@ def logout(session):
     return True
 
 
-def run_command(choice):
+def run_command(choice, session):
     """
     Execute the selected toolkit command.
     """
+
     command = COMMANDS.get(choice)
 
     if command is None:
-        print_error("Invalid menu choice.")
+        print_error(
+            "Invalid menu choice."
+        )
+        return
+
+    # Security Dashboard and User Management
+    # are available only to administrators.
+    if (
+        choice in ("11", "12")
+        and not session.is_admin()
+    ):
+        print_error(
+            "Access denied. "
+            "Administrator privileges required."
+        )
+
+        logger.warning(
+            "Unauthorized admin module access "
+            "attempt by '%s'.",
+            session.get_username(),
+        )
+
         return
 
     command_name, command_function = command
@@ -113,6 +268,7 @@ def run_command(choice):
     )
 
     try:
+
         command_function()
 
         logger.info(
@@ -121,6 +277,7 @@ def run_command(choice):
         )
 
     except KeyboardInterrupt:
+
         print_warning(
             f"{command_name} cancelled by user."
         )
@@ -131,6 +288,7 @@ def run_command(choice):
         )
 
     except Exception as error:
+
         print_error(
             f"{command_name} failed."
         )
@@ -150,22 +308,30 @@ def main_menu(session):
         True  -> user logged out
         False -> user selected exit
     """
+
     while session.is_authenticated():
 
         clear_screen()
+
         print_banner()
 
         print_info(
             f"Logged in as: {session.get_username()}"
         )
 
-        show_menu()
+        print_info(
+            f"Role: {session.get_role()}"
+        )
+
+        show_menu(session)
 
         choice = input(
             "\nEnter your choice: "
         ).strip()
 
+        # Exit application
         if choice == "0":
+
             logger.info(
                 "Application exited by user '%s'.",
                 session.get_username(),
@@ -177,8 +343,11 @@ def main_menu(session):
 
             return False
 
-        if choice == "11":
+        # Logout
+        if choice == "13":
+
             logout(session)
+
             pause()
 
             return True
@@ -186,15 +355,22 @@ def main_menu(session):
         if not validate_menu_choice(
             choice,
             1,
-            10,
+            13,
         ):
+
             print_error(
-                "Invalid choice. Please select 0-11."
+                "Invalid choice. Please select 0-13."
             )
+
             pause()
+
             continue
 
-        run_command(choice)
+        run_command(
+            choice,
+            session,
+        )
+
         pause()
 
     return True
@@ -204,8 +380,11 @@ def main():
     """
     Application entry point.
     """
+
     try:
+
         clear_screen()
+
         print_banner()
 
         print_info(
@@ -213,6 +392,31 @@ def main():
         )
 
         initialize_database()
+
+        # First administrator setup.
+        if get_admin_count() == 0:
+
+            if get_user_count() == 0:
+
+                if not setup_first_admin():
+                    return
+
+            else:
+
+                print_warning(
+                    "No administrator account exists."
+                )
+
+                print_info(
+                    "Existing users were not modified."
+                )
+
+                print_info(
+                    "Administrator setup requires "
+                    "the configured administrator account."
+                )
+
+                pause()
 
         set_metadata(
             "app_version",
@@ -224,76 +428,41 @@ def main():
         while True:
 
             clear_screen()
+
             print_banner()
 
-            user = login()
+            if not session.is_authenticated():
 
-            if user is None:
-                logger.warning(
-                    "Login failed."
+                print_info(
+                    "Please log in to continue."
                 )
 
-                print_error(
-                    "Authentication failed."
+                user = login(session)
+
+                if user is None:
+
+                    pause()
+
+                    continue
+
+                session.login(user)
+
+                logger.info(
+                    "Session started for user '%s'.",
+                    session.get_username(),
                 )
 
-                retry = input(
-                    "\nTry again? [Y/n]: "
-                ).strip().lower()
-
-                if retry in ("n", "no"):
-                    print_info(
-                        "Goodbye!"
-                    )
-
-                    return
-
-                continue
-
-            session.login(user)
-
-            logger.info(
-                "User '%s' logged in successfully.",
-                session.get_username(),
+            should_continue = main_menu(
+                session
             )
 
-            print_info(
-                f"Logged in as: "
-                f"{session.get_username()}"
-            )
-
-            pause()
-
-            logged_out = main_menu(session)
-
-            if not logged_out:
+            if should_continue is False:
                 break
 
-            # User logged out.
-            # Return to login screen.
-            session.logout()
-
-            print_info(
-                "Returning to login screen..."
-            )
-
-            pause()
-
-        logger.info(
-            "Cyber Nexus Security Toolkit stopped."
-        )
-
-        clear_screen()
-        print_banner()
-
-        print_success(
-            "Thank you for using Cyber Nexus Security Toolkit."
-        )
-
     except KeyboardInterrupt:
-        print()
+
         print_warning(
-            "Application interrupted by user."
+            "\nApplication interrupted by user."
         )
 
         logger.info(
@@ -301,8 +470,9 @@ def main():
         )
 
     except Exception as error:
+
         print_error(
-            "Application encountered an unexpected error."
+            "Application failed unexpectedly."
         )
 
         logger.exception(

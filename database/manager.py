@@ -1,37 +1,63 @@
 import sqlite3
+from datetime import datetime, timedelta
+from pathlib import Path
 
-from core.config import BASE_DIR
-from core.passwords import (
-    hash_password,
-    verify_password,
+from core.config import (
+    ADMIN_USERNAME,
+    BASE_DIR,
+    LOGIN_LOCKOUT_SECONDS,
+    MAX_LOGIN_ATTEMPTS,
 )
-from core.utils import get_timestamp
+from core.passwords import hash_password, verify_password
 
+
+# ============================================================
+# Database Configuration
+# ============================================================
 
 DATABASE_FILE = BASE_DIR / "cyber_nexus.db"
 
-REPORT_STATUSES = {
+VALID_REPORT_STATUSES = {
     "available",
+    "completed",
+    "failed",
     "deleted",
+    "pending",
 }
 
 
+# ============================================================
+# Connection
+# ============================================================
+
 def get_connection():
     """
-    Create and return a SQLite database connection.
+    Return a SQLite database connection with Row objects.
     """
-    connection = sqlite3.connect(DATABASE_FILE)
 
+    connection = sqlite3.connect(DATABASE_FILE)
     connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
 
     return connection
 
 
+# ============================================================
+# Database Initialization
+# ============================================================
+
 def initialize_database():
     """
-    Create the initial database structure
-    and apply lightweight schema migrations.
+    Create required tables if they do not already exist.
+
+    Existing database data is preserved.
     """
+
+    DATABASE_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     connection = get_connection()
 
     try:
@@ -65,28 +91,61 @@ def initialize_database():
                 username TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                is_active INTEGER NOT NULL DEFAULT 1
+                is_active INTEGER NOT NULL DEFAULT 1,
+                role TEXT NOT NULL DEFAULT 'user',
+                failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+                locked_until TEXT
             )
             """
         )
 
-        columns = connection.execute(
-            """
-            PRAGMA table_info(report_history)
-            """
-        ).fetchall()
+        # ----------------------------------------------------
+        # Safe migrations for older databases
+        # ----------------------------------------------------
 
-        column_names = {
-            column["name"]
-            for column in columns
+        report_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(report_history)"
+            ).fetchall()
         }
 
-        if "status" not in column_names:
+        if "status" not in report_columns:
             connection.execute(
                 """
                 ALTER TABLE report_history
-                ADD COLUMN status TEXT NOT NULL
-                DEFAULT 'available'
+                ADD COLUMN status TEXT NOT NULL DEFAULT 'available'
+                """
+            )
+
+        user_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(users)"
+            ).fetchall()
+        }
+
+        if "role" not in user_columns:
+            connection.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN role TEXT NOT NULL DEFAULT 'user'
+                """
+            )
+
+        if "failed_login_attempts" not in user_columns:
+            connection.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0
+                """
+            )
+
+        if "locked_until" not in user_columns:
+            connection.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN locked_until TEXT
                 """
             )
 
@@ -96,10 +155,25 @@ def initialize_database():
         connection.close()
 
 
+# ============================================================
+# Metadata
+# ============================================================
+
 def set_metadata(key, value):
     """
-    Create or update an application metadata value.
+    Create or update application metadata.
     """
+
+    if key is None:
+        raise ValueError("Metadata key cannot be empty.")
+
+    key = str(key).strip()
+
+    if not key:
+        raise ValueError("Metadata key cannot be empty.")
+
+    value = None if value is None else str(value)
+
     initialize_database()
 
     connection = get_connection()
@@ -112,10 +186,7 @@ def set_metadata(key, value):
             ON CONFLICT(key)
             DO UPDATE SET value = excluded.value
             """,
-            (
-                str(key),
-                str(value),
-            ),
+            (key, value),
         )
 
         connection.commit()
@@ -126,8 +197,17 @@ def set_metadata(key, value):
 
 def get_metadata(key, default=None):
     """
-    Retrieve an application metadata value.
+    Retrieve application metadata.
     """
+
+    if key is None:
+        return default
+
+    key = str(key).strip()
+
+    if not key:
+        return default
+
     initialize_database()
 
     connection = get_connection()
@@ -139,7 +219,7 @@ def get_metadata(key, default=None):
             FROM app_metadata
             WHERE key = ?
             """,
-            (str(key),),
+            (key,),
         ).fetchone()
 
         if row is None:
@@ -151,47 +231,48 @@ def get_metadata(key, default=None):
         connection.close()
 
 
-def delete_metadata(key):
+# ============================================================
+# Report History
+# ============================================================
+
+def add_report_history(
+    report_name,
+    report_type,
+    file_path,
+    created_at=None,
+    status="available",
+):
     """
-    Delete an application metadata value.
+    Add a report to report history.
     """
+
+    if not report_name:
+        raise ValueError("Report name cannot be empty.")
+
+    if not report_type:
+        raise ValueError("Report type cannot be empty.")
+
+    if not file_path:
+        raise ValueError("File path cannot be empty.")
+
+    status = str(status).strip().lower()
+
+    if status not in VALID_REPORT_STATUSES:
+        raise ValueError(
+            f"Invalid report status: {status}"
+        )
+
+    if created_at is None:
+        created_at = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
     initialize_database()
 
     connection = get_connection()
 
     try:
         cursor = connection.execute(
-            """
-            DELETE FROM app_metadata
-            WHERE key = ?
-            """,
-            (str(key),),
-        )
-
-        connection.commit()
-
-        return cursor.rowcount > 0
-
-    finally:
-        connection.close()
-
-
-def add_report_history(
-    report_name,
-    report_type,
-    file_path,
-    created_at,
-):
-    """
-    Store generated report information
-    in the database.
-    """
-    initialize_database()
-
-    connection = get_connection()
-
-    try:
-        connection.execute(
             """
             INSERT INTO report_history (
                 report_name,
@@ -207,11 +288,13 @@ def add_report_history(
                 str(report_type),
                 str(file_path),
                 str(created_at),
-                "available",
+                status,
             ),
         )
 
         connection.commit()
+
+        return cursor.lastrowid
 
     finally:
         connection.close()
@@ -221,6 +304,7 @@ def get_report_history(limit=50):
     """
     Return recent report history.
     """
+
     try:
         limit = int(limit)
     except (TypeError, ValueError):
@@ -259,54 +343,53 @@ def get_report_history(limit=50):
         connection.close()
 
 
-def update_report_status(
-    report_id,
-    status,
-):
+def get_report_by_id(report_id):
     """
-    Update the status of a report history entry.
+    Retrieve a report history entry by ID.
     """
-    status = str(status).strip().lower()
-
-    if status not in REPORT_STATUSES:
-        return False
 
     try:
         report_id = int(report_id)
     except (TypeError, ValueError):
-        return False
+        return None
 
     if report_id < 1:
-        return False
+        return None
 
     initialize_database()
 
     connection = get_connection()
 
     try:
-        cursor = connection.execute(
+        row = connection.execute(
             """
-            UPDATE report_history
-            SET status = ?
+            SELECT
+                id,
+                report_name,
+                report_type,
+                file_path,
+                created_at,
+                status
+            FROM report_history
             WHERE id = ?
             """,
-            (
-                status,
-                report_id,
-            ),
-        )
+            (report_id,),
+        ).fetchone()
 
-        connection.commit()
+        if row is None:
+            return None
 
-        return cursor.rowcount > 0
+        return dict(row)
 
     finally:
         connection.close()
+
 
 def get_report_by_file_path(file_path):
     """
     Retrieve a report history entry by file path.
     """
+
     if file_path is None:
         return None
 
@@ -345,61 +428,89 @@ def get_report_by_file_path(file_path):
     finally:
         connection.close()
 
-def get_report_by_id(report_id):
+
+def update_report_status(report_id, status):
     """
-    Retrieve a single report history entry by ID.
+    Update the status of an existing report.
     """
+
     try:
         report_id = int(report_id)
     except (TypeError, ValueError):
-        return None
+        return False
 
     if report_id < 1:
-        return None
+        return False
+
+    if status is None:
+        return False
+
+    status = str(status).strip().lower()
+
+    if status not in VALID_REPORT_STATUSES:
+        return False
 
     initialize_database()
 
     connection = get_connection()
 
     try:
-        row = connection.execute(
+        cursor = connection.execute(
             """
-            SELECT
-                id,
-                report_name,
-                report_type,
-                file_path,
-                created_at,
-                status
-            FROM report_history
+            UPDATE report_history
+            SET status = ?
             WHERE id = ?
             """,
-            (report_id,),
-        ).fetchone()
+            (status, report_id),
+        )
 
-        if row is None:
-            return None
+        connection.commit()
 
-        return dict(row)
+        return cursor.rowcount > 0
 
     finally:
         connection.close()
 
+
+# ============================================================
+# User Management
+# ============================================================
+
 def create_user(username, password):
     """
-    Create a new user with a securely hashed password.
+    Create a normal user.
+
+    Normal users always receive the 'user' role.
     """
+
+    if username is None:
+        raise ValueError("Username cannot be empty.")
+
     username = str(username).strip()
 
     if not username:
         raise ValueError("Username cannot be empty.")
 
-    if not isinstance(password, str) or not password:
+    if password is None or not str(password):
         raise ValueError("Password cannot be empty.")
+
+    if username == ADMIN_USERNAME:
+        raise ValueError(
+            f"'{ADMIN_USERNAME}' is reserved for the administrator."
+        )
 
     initialize_database()
 
-    password_hash = hash_password(password)
+    if get_user_by_username(username) is not None:
+        raise ValueError(
+            f"Username '{username}' already exists."
+        )
+
+    password_hash = hash_password(str(password))
+
+    created_at = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
     connection = get_connection()
 
@@ -410,15 +521,17 @@ def create_user(username, password):
                 username,
                 password_hash,
                 created_at,
-                is_active
+                is_active,
+                role,
+                failed_login_attempts,
+                locked_until
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, 1, 'user', 0, NULL)
             """,
             (
                 username,
                 password_hash,
-                get_timestamp(),
-                1,
+                created_at,
             ),
         )
 
@@ -428,55 +541,122 @@ def create_user(username, password):
 
     except sqlite3.IntegrityError as error:
         connection.rollback()
-
-        if "users.username" in str(error):
-            raise ValueError(
-                f"Username '{username}' already exists."
-            ) from error
-
-        raise
+        raise ValueError(
+            f"Could not create user: {error}"
+        ) from error
 
     finally:
         connection.close()
 
-def authenticate_user(username, password):
-    """
-    Authenticate a user using username and password.
 
-    Returns the user dictionary when authentication succeeds.
-    Returns None when authentication fails.
+def create_first_admin(username, password):
     """
+    Create the first administrator account.
+
+    Only ADMIN_USERNAME can become admin.
+    """
+
     if username is None:
-        return None
-
-    if not isinstance(password, str):
-        return None
+        raise ValueError("Username cannot be empty.")
 
     username = str(username).strip()
 
-    if not username or not password:
-        return None
+    if username != ADMIN_USERNAME:
+        raise ValueError(
+            f"Administrator username must be '{ADMIN_USERNAME}'."
+        )
 
-    user = get_user_by_username(username)
+    if password is None or not str(password):
+        raise ValueError("Password cannot be empty.")
 
-    if user is None:
-        return None
+    initialize_database()
 
-    if not user["is_active"]:
-        return None
+    if get_admin_count() > 0:
+        raise ValueError(
+            "An administrator account already exists."
+        )
 
-    if not verify_password(
-        password,
-        user["password_hash"],
-    ):
-        return None
+    existing_user = get_user_by_username(username)
 
-    return user
+    if existing_user is not None:
+        raise ValueError(
+            f"Username '{username}' already exists."
+        )
+
+    password_hash = hash_password(str(password))
+
+    created_at = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO users (
+                username,
+                password_hash,
+                created_at,
+                is_active,
+                role,
+                failed_login_attempts,
+                locked_until
+            )
+            VALUES (?, ?, ?, 1, 'admin', 0, NULL)
+            """,
+            (
+                username,
+                password_hash,
+                created_at,
+            ),
+        )
+
+        connection.commit()
+
+        return cursor.lastrowid
+
+    finally:
+        connection.close()
+
+
+def ensure_admin_account(password):
+    """
+    Create the Sabbo administrator account if no admin exists.
+
+    Returns True only when a new administrator account is created.
+    Returns False if an administrator already exists.
+    """
+
+    if password is None or not str(password):
+        return False
+
+    initialize_database()
+
+    # Admin already exists.
+    if get_admin_count() > 0:
+        return False
+
+    admin = get_user_by_username(ADMIN_USERNAME)
+
+    if admin is not None:
+        return False
+
+    try:
+        create_first_admin(
+            ADMIN_USERNAME,
+            str(password),
+        )
+        return True
+    except (ValueError, sqlite3.IntegrityError):
+        return False
+
 
 def get_user_by_username(username):
     """
     Retrieve a user by username.
     """
+
     if username is None:
         return None
 
@@ -497,7 +677,10 @@ def get_user_by_username(username):
                 username,
                 password_hash,
                 created_at,
-                is_active
+                is_active,
+                role,
+                failed_login_attempts,
+                locked_until
             FROM users
             WHERE username = ?
             """,
@@ -513,10 +696,37 @@ def get_user_by_username(username):
         connection.close()
 
 
-def set_user_active(username, is_active):
+# ============================================================
+# Login Security
+# ============================================================
+
+def get_login_security(username):
     """
-    Activate or deactivate a user account.
+    Return login security information for a user.
     """
+
+    user = get_user_by_username(username)
+
+    if user is None:
+        return None
+
+    return {
+        "username": user["username"],
+        "failed_login_attempts": user["failed_login_attempts"],
+        "locked_until": user["locked_until"],
+        "is_active": user["is_active"],
+    }
+
+
+def update_login_security(
+    username,
+    failed_login_attempts=0,
+    locked_until=None,
+):
+    """
+    Update failed-login and lockout information.
+    """
+
     if username is None:
         return False
 
@@ -525,7 +735,205 @@ def set_user_active(username, is_active):
     if not username:
         return False
 
-    is_active = 1 if bool(is_active) else 0
+    try:
+        failed_login_attempts = int(
+            failed_login_attempts
+        )
+    except (TypeError, ValueError):
+        return False
+
+    if failed_login_attempts < 0:
+        failed_login_attempts = 0
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.execute(
+            """
+            UPDATE users
+            SET
+                failed_login_attempts = ?,
+                locked_until = ?
+            WHERE username = ?
+            """,
+            (
+                failed_login_attempts,
+                locked_until,
+                username,
+            ),
+        )
+
+        connection.commit()
+
+        return cursor.rowcount > 0
+
+    finally:
+        connection.close()
+
+
+def authenticate_user(username, password):
+    """
+    Authenticate a user.
+
+    Returns the user dictionary on success.
+    Returns None on failure.
+    """
+
+    if username is None or password is None:
+        return None
+
+    username = str(username).strip()
+
+    if not username:
+        return None
+
+    user = get_user_by_username(username)
+
+    if user is None:
+        return None
+
+    if not user["is_active"]:
+        return None
+
+    # --------------------------------------------------------
+    # Check lockout
+    # --------------------------------------------------------
+
+    locked_until = user["locked_until"]
+
+    if locked_until:
+        try:
+            lock_time = datetime.fromisoformat(
+                locked_until
+            )
+
+            if datetime.now() < lock_time:
+                return None
+
+            # Lock expired — reset security state.
+            update_login_security(
+                username,
+                failed_login_attempts=0,
+                locked_until=None,
+            )
+
+            user["failed_login_attempts"] = 0
+            user["locked_until"] = None
+
+        except ValueError:
+            update_login_security(
+                username,
+                failed_login_attempts=0,
+                locked_until=None,
+            )
+
+    # --------------------------------------------------------
+    # Verify password
+    # --------------------------------------------------------
+
+    if verify_password(
+        str(password),
+        user["password_hash"],
+    ):
+        update_login_security(
+            username,
+            failed_login_attempts=0,
+            locked_until=None,
+        )
+
+        user["failed_login_attempts"] = 0
+        user["locked_until"] = None
+
+        return user
+
+    # --------------------------------------------------------
+    # Failed login
+    # --------------------------------------------------------
+
+    failed_attempts = (
+        user["failed_login_attempts"] or 0
+    )
+
+    failed_attempts += 1
+
+    if failed_attempts >= MAX_LOGIN_ATTEMPTS:
+        lock_time = datetime.now() + timedelta(
+            seconds=LOGIN_LOCKOUT_SECONDS
+        )
+
+        locked_until = lock_time.isoformat(
+            timespec="seconds"
+        )
+
+        update_login_security(
+            username,
+            failed_login_attempts=failed_attempts,
+            locked_until=locked_until,
+        )
+    else:
+        update_login_security(
+            username,
+            failed_login_attempts=failed_attempts,
+            locked_until=None,
+        )
+
+    return None
+
+
+# ============================================================
+# User Queries
+# ============================================================
+
+def get_all_users():
+    """
+    Return all registered users.
+    """
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                id,
+                username,
+                created_at,
+                is_active,
+                role,
+                failed_login_attempts,
+                locked_until
+            FROM users
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+        return [
+            dict(row)
+            for row in rows
+        ]
+
+    finally:
+        connection.close()
+
+
+def set_user_active(username, is_active):
+    """
+    Activate or deactivate a user.
+    """
+
+    if username is None:
+        return False
+
+    username = str(username).strip()
+
+    if not username:
+        return False
+
+    is_active = 1 if is_active else 0
 
     initialize_database()
 
@@ -551,62 +959,103 @@ def set_user_active(username, is_active):
     finally:
         connection.close()
 
-def get_all_users():
+
+def get_admin_count():
     """
-    Retrieve all users without exposing password hashes.
+    Return number of administrator accounts.
     """
+
     initialize_database()
 
     connection = get_connection()
 
     try:
-        rows = connection.execute(
+        row = connection.execute(
             """
-            SELECT
-                id,
-                username,
-                created_at,
-                is_active
+            SELECT COUNT(*) AS count
             FROM users
-            ORDER BY id ASC
+            WHERE role = 'admin'
             """
-        ).fetchall()
+        ).fetchone()
 
-        return [dict(row) for row in rows]
+        return row["count"] or 0
 
     finally:
         connection.close()
 
-def test_get_all_users():
-    username = "test_get_all_users"
 
-    create_user(
-        username,
-        "TestPassword123!",
-    )
+def get_user_count():
+    """
+    Return total number of users.
+    """
 
-    users = get_all_users()
-
-    assert isinstance(users, list)
-    assert len(users) >= 1
-
-    user = next(
-        (
-            item
-            for item in users
-            if item["username"] == username
-        ),
-        None,
-    )
-
-    assert user is not None
-    assert user["username"] == username
-    assert user["is_active"] == 1
-    assert "password_hash" not in user
-
-if __name__ == "__main__":
     initialize_database()
 
-    print(
-        f"Database initialized: {DATABASE_FILE}"
-    )
+    connection = get_connection()
+
+    try:
+        row = connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM users
+            """
+        ).fetchone()
+
+        return row["count"] or 0
+
+    finally:
+        connection.close()
+
+
+def get_user_statistics():
+    """
+    Return basic user security statistics.
+    """
+
+    initialize_database()
+
+    connection = get_connection()
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                COUNT(*) AS total_users,
+                SUM(
+                    CASE
+                        WHEN is_active = 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS active_users,
+                SUM(
+                    CASE
+                        WHEN is_active = 0 THEN 1
+                        ELSE 0
+                    END
+                ) AS inactive_users,
+                SUM(
+                    CASE
+                        WHEN role = 'admin' THEN 1
+                        ELSE 0
+                    END
+                ) AS admin_users
+            FROM users
+            """
+        ).fetchone()
+
+        return {
+            "total_users": row["total_users"] or 0,
+            "active_users": row["active_users"] or 0,
+            "inactive_users": row["inactive_users"] or 0,
+            "admin_users": row["admin_users"] or 0,
+        }
+
+    finally:
+        connection.close()
+
+
+# ============================================================
+# Automatic Initialization
+# ============================================================
+
+initialize_database()

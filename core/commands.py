@@ -8,6 +8,8 @@ from modules.log_analyzer.analyzer import run as log_analyzer
 from modules.report_manager.manager import run as reports_manager
 from modules.health_check.checker import run as health_check
 from modules.settings.manager import run as settings_manager
+from modules.user_manager.manager import run as user_manager
+from modules.dashboard.dashboard import run as dashboard
 
 
 COMMANDS = {
@@ -21,4 +23,6 @@ COMMANDS = {
     "8": ("Reports Manager", reports_manager),
     "9": ("Health Check", health_check),
     "10": ("Settings", settings_manager),
+    "11": ("Security Dashboard", dashboard),
+    "12": ("User Management", user_manager),
 }

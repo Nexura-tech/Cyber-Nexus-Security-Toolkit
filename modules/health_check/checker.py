@@ -1,7 +1,11 @@
 import importlib
 
 from core.config import REPORT_DIR, LOG_DIR
-from core.utils import print_success, print_error, print_warning
+from core.utils import (
+    print_success,
+    print_error,
+    print_warning,
+)
 
 
 MODULES = {
@@ -19,6 +23,7 @@ MODULES = {
 
 def check_directory(directory, name):
     """Check whether a required directory exists."""
+
     if directory.exists() and directory.is_dir():
         print_success(f"{name:<25} OK")
         return True
@@ -29,6 +34,7 @@ def check_directory(directory, name):
 
 def check_dependency(module_name, display_name):
     """Check whether a required Python dependency can be imported."""
+
     try:
         importlib.import_module(module_name)
         print_success(f"{display_name:<25} OK")
@@ -42,6 +48,7 @@ def check_dependency(module_name, display_name):
 
 def check_application_module(module_name, display_name):
     """Check whether an application module can be imported."""
+
     try:
         importlib.import_module(module_name)
         print_success(f"{display_name:<25} OK")
@@ -53,7 +60,70 @@ def check_application_module(module_name, display_name):
         return False
 
 
+def get_health_summary():
+    """
+    Run all health checks and return a summary.
+
+    This function does not print the complete health-check report.
+    It is designed to be reused by the dashboard and other components.
+    """
+
+    total_checks = 0
+    passed_checks = 0
+
+    directories = [
+        (REPORT_DIR, "Reports Directory"),
+        (LOG_DIR, "Logs Directory"),
+    ]
+
+    for directory, name in directories:
+        total_checks += 1
+
+        if directory.exists() and directory.is_dir():
+            passed_checks += 1
+
+    dependencies = [
+        "requests",
+        "colorama",
+        "pytest",
+    ]
+
+    for module_name in dependencies:
+        total_checks += 1
+
+        try:
+            importlib.import_module(module_name)
+            passed_checks += 1
+        except ImportError:
+            pass
+
+    for module_name in MODULES.values():
+        total_checks += 1
+
+        try:
+            importlib.import_module(module_name)
+            passed_checks += 1
+        except Exception:
+            pass
+
+    failed_checks = total_checks - passed_checks
+
+    if failed_checks == 0:
+        status = "READY"
+    else:
+        status = "ATTENTION REQUIRED"
+
+    return {
+        "total_checks": total_checks,
+        "passed_checks": passed_checks,
+        "failed_checks": failed_checks,
+        "status": status,
+    }
+
+
 def run():
+    """Run the complete Cyber Nexus Health Check."""
+
     print("\nCyber Nexus Health Check")
     print("=" * 60)
 
